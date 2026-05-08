@@ -1,0 +1,144 @@
+version: '3.8'
+
+services:
+  # Infrastructure Services
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: myfooddelivery-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "MyFoodDelivery@2024!"
+      MSSQL_PID: Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "MyFoodDelivery@2024!" -Q "SELECT 1" -b -o /dev/null
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - myfooddelivery-network
+
+  mongodb:
+    image: mongo:6
+    container_name: myfooddelivery-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: MongoAdmin@2024
+    volumes:
+      - mongodb-data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    networks:
+      - myfooddelivery-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: myfooddelivery-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass "RedisPassword@2024"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "RedisPassword@2024", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - myfooddelivery-network
+
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: myfooddelivery-rabbitmq
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: RabbitAdmin@2024
+      RABBITMQ_DEFAULT_VHOST: myfooddelivery
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    networks:
+      - myfooddelivery-network
+
+  # Optional: pgAdmin for Postgres (if needed in future)
+  # Optional: Redis Commander for Redis management
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: myfooddelivery-redis-commander
+    environment:
+      REDIS_HOSTS: local:redis:6379:0:RedisPassword@2024
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - myfooddelivery-network
+    profiles:
+      - tools
+
+  # Seq for centralized logging (optional but recommended)
+  seq:
+    image: datalust/seq:latest
+    container_name: myfooddelivery-seq
+    environment:
+      ACCEPT_EULA: "Y"
+    ports:
+      - "5341:80"
+      - "5342:5341"
+    volumes:
+      - seq-data:/data
+    networks:
+      - myfooddelivery-network
+    profiles:
+      - logging
+
+  # Jaeger for distributed tracing (optional)
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: myfooddelivery-jaeger
+    ports:
+      - "16686:16686" # UI
+      - "6831:6831/udp" # Jaeger thrift compact
+      - "14268:14268" # Jaeger thrift HTTP
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    networks:
+      - myfooddelivery-network
+    profiles:
+      - tracing
+
+volumes:
+  sqlserver-data:
+    driver: local
+  mongodb-data:
+    driver: local
+  redis-data:
+    driver: local
+  rabbitmq-data:
+    driver: local
+  seq-data:
+    driver: local
+
+networks:
+  myfooddelivery-network:
+    driver: bridge
+    name: myfooddelivery-network
