@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
-using OrderingSvc.Application.Services;
+using OrderingSvc.Domain.Services;
 using OrderingSvc.Infrastructure.EntityFrameworkCore;
 using OrderingSvc.Infrastructure.Services;
 using StackExchange.Redis;
@@ -30,9 +30,11 @@ public class OrderingSvcInfrastructureModule : AbpModule
         });
 
         var configuration = context.Services.GetConfiguration();
-        var redisConfig = configuration["Redis:Configuration"] ?? "localhost:6379";
+        var redisConnectionString = configuration["Redis:Configuration"] ?? "localhost:6379";
+        var redisOptions = ConfigurationOptions.Parse(redisConnectionString);
+        redisOptions.AbortOnConnectFail = false;
         context.Services.AddSingleton<IConnectionMultiplexer>(
-            ConnectionMultiplexer.Connect(redisConfig));
+            ConnectionMultiplexer.Connect(redisOptions));
         context.Services.AddTransient<ICartService, RedisCartService>();
     }
 }

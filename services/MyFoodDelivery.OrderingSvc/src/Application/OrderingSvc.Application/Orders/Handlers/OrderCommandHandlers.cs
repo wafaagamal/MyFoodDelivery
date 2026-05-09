@@ -11,7 +11,6 @@ using Volo.Abp.Uow;
 using MyFoodDelivery.Shared.Events;
 using DomainOrderStatus = OrderingSvc.Domain.Orders.OrderStatus;
 using EventOrderStatus = MyFoodDelivery.Shared.Events.OrderStatus;
-using DomainCancellationReason = OrderingSvc.Domain.Orders.OrderCancellationReason;
 
 namespace OrderingSvc.Application.Orders.Handlers;
 
@@ -150,7 +149,7 @@ public class OrderCommandHandlers :
     public async Task Handle(AssignRiderCommand request, CancellationToken cancellationToken)
     {
         var order = await _orderRepository.GetAsync(request.OrderId, cancellationToken: cancellationToken);
-        order.AssignRider(request.RiderId, request.RiderName, 30); // Default 30 min estimate
+        order.AssignRider(request.RiderId, request.RiderName, request.RiderPhone, 30); // Default 30 min estimate
         await _orderRepository.UpdateAsync(order, cancellationToken: cancellationToken);
     }
 
@@ -183,8 +182,8 @@ public class OrderCommandHandlers :
     {
         var order = await _orderRepository.GetAsync(request.OrderId, cancellationToken: cancellationToken);
         var cancellationReason = request.CancelledBy.HasValue 
-            ? DomainCancellationReason.CustomerRequested 
-            : DomainCancellationReason.Other;
+            ? OrderCancellationReason.CustomerRequested 
+            : OrderCancellationReason.Other;
         order.Cancel(request.Reason ?? "No reason provided", cancellationReason);
         await _orderRepository.UpdateAsync(order, cancellationToken: cancellationToken);
     }

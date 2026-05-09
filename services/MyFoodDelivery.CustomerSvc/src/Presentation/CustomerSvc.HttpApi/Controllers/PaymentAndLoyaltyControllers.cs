@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using CustomerSvc.Application.Customers.Commands;
 using CustomerSvc.Application.Customers.Queries;
+using CustomerSvc.Application.Contracts.Customers.Dtos;
+using CustomerSvc.HttpApi.Dtos;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -144,24 +146,3 @@ public class LoyaltyController : AbpController
         return userId;
     }
 }
-
-#region Request/Response DTOs
-
-public record AddPaymentMethodRequest(
-    string Type,
-    string Label,
-    string? Last4Digits,
-    string? CardBrand,
-    string? ExternalToken,
-    DateTime? ExpiryDate,
-    bool IsDefault = false);
-
-public record RedeemPointsRequest(
-    int Points,
-    Guid? OrderId);
-
-public record RedeemPointsResponse(
-    bool Success,
-    string? ErrorMessage);
-
-#endregion

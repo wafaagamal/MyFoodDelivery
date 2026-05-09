@@ -16,20 +16,13 @@ public abstract record CustomerDomainEvent
 /// Raised when a new customer is created.
 /// </summary>
 public record CustomerCreatedDomainEvent(
-    Guid CustomerId,
-    string Email,
-    string FirstName,
-    string LastName,
-    string? PhoneNumber) : CustomerDomainEvent;
+    Guid CustomerId) : CustomerDomainEvent;
 
 /// <summary>
-/// Raised when a customer updates their profile.
+/// Raised when a customer updates their profile (via AuthSvc, relayed by event).
 /// </summary>
 public record CustomerProfileUpdatedDomainEvent(
-    Guid CustomerId,
-    string FirstName,
-    string LastName,
-    string? PhoneNumber) : CustomerDomainEvent;
+    Guid CustomerId) : CustomerDomainEvent;
 
 /// <summary>
 /// Raised when a customer adds a delivery address.

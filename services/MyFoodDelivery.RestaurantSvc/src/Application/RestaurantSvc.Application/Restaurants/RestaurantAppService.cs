@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using RestaurantSvc.Application.Contracts.Permissions;
 using RestaurantSvc.Application.Contracts.Restaurants;
+using RestaurantSvc.Application.Contracts.Restaurants.Dtos;
 using RestaurantSvc.Domain.Restaurants;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
@@ -86,20 +87,17 @@ public class RestaurantAppService : ApplicationService, IRestaurantAppService
 
         var dtos = restaurants.Select(r =>
         {
-            var dto = ObjectMapper.Map<Restaurant, RestaurantListDto>(r);
-
-            // Calculate distance if coordinates provided
+            double? distKm = null;
             if (input.Latitude.HasValue && input.Longitude.HasValue)
-            {
-                dto.DistanceKm = CalculateDistance(
-                    input.Latitude.Value, input.Longitude.Value,
-                    r.Address.Latitude, r.Address.Longitude);
-            }
+                distKm = Math.Round(CalculateDistance(input.Latitude.Value, input.Longitude.Value, r.Address.Latitude, r.Address.Longitude), 2);
 
-            return dto;
+            return new RestaurantListDto(
+                r.Id, r.Name, r.CuisineType, r.LogoUrl,
+                r.DeliveryFee, r.EstimatedDeliveryMinutes,
+                r.AverageRating, r.TotalRatings, r.IsOpen, distKm);
         }).ToList();
 
-        return new PagedResultDto<RestaurantListDto>(totalCount, dtos);
+        return new Volo.Abp.Application.Dtos.PagedResultDto<RestaurantListDto>(totalCount, dtos);
     }
 
     public async Task<List<RestaurantListDto>> GetByOwnerAsync()
@@ -109,7 +107,10 @@ public class RestaurantAppService : ApplicationService, IRestaurantAppService
             .Where(r => r.OwnerId == CurrentUser.Id)
             .ToList();
 
-        return ObjectMapper.Map<List<Restaurant>, List<RestaurantListDto>>(restaurants);
+        return restaurants.Select(r => new RestaurantListDto(
+            r.Id, r.Name, r.CuisineType, r.LogoUrl,
+            r.DeliveryFee, r.EstimatedDeliveryMinutes,
+            r.AverageRating, r.TotalRatings, r.IsOpen, null)).ToList();
     }
 
     [AllowAnonymous]
@@ -127,11 +128,12 @@ public class RestaurantAppService : ApplicationService, IRestaurantAppService
                     input.Latitude, input.Longitude,
                     r.Address.Latitude, r.Address.Longitude);
 
-                var dto = ObjectMapper.Map<Restaurant, NearbyRestaurantDto>(r);
-                dto.DistanceKm = Math.Round(distance, 2);
-                dto.Latitude = r.Address.Latitude;
-                dto.Longitude = r.Address.Longitude;
-                return dto;
+                return new NearbyRestaurantDto(
+                    r.Id, r.Name, r.CuisineType, r.LogoUrl,
+                    r.DeliveryFee, r.EstimatedDeliveryMinutes,
+                    r.AverageRating, r.IsOpen,
+                    Math.Round(distance, 2),
+                    r.Address.Latitude, r.Address.Longitude);
             })
             .Where(r => r.DistanceKm <= input.RadiusKm)
             .OrderBy(r => r.DistanceKm)

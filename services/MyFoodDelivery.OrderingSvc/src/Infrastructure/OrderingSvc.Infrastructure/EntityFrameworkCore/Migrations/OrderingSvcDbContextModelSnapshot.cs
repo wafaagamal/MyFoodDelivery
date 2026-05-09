@@ -112,6 +112,12 @@ namespace OrderingSvc.Infrastructure.EntityFrameworkCore.Migrations
                     b.Property<DateTime?>("PaymentConfirmedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("PaymentMethod")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("PaymentMethodId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTime?>("PickedUpAt")
                         .HasColumnType("datetime2");
 
@@ -124,8 +130,25 @@ namespace OrderingSvc.Infrastructure.EntityFrameworkCore.Migrations
                     b.Property<Guid>("RestaurantId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("RestaurantName")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<Guid?>("RiderId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<double?>("RiderLatitude")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("RiderLongitude")
+                        .HasColumnType("float");
+
+                    b.Property<string>("RiderName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("RiderPhone")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<decimal>("ServiceFee")
                         .HasPrecision(18, 2)

@@ -25,6 +25,16 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
 
         builder.Property(o => o.RiderId);
 
+        builder.Property(o => o.RiderName)
+            .HasMaxLength(200);
+
+        builder.Property(o => o.RiderPhone)
+            .HasMaxLength(30);
+
+        builder.Property(o => o.RiderLatitude);
+
+        builder.Property(o => o.RiderLongitude);
+
         builder.Property(o => o.Status)
             .HasConversion<string>()
             .HasMaxLength(50);

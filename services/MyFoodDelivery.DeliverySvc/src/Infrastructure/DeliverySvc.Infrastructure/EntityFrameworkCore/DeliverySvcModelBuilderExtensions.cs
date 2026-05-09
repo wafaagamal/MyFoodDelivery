@@ -12,16 +12,20 @@ public static class DeliverySvcModelBuilderExtensions
         {
             b.ToTable("Riders");
             b.HasKey(x => x.Id);
-            b.Property(x => x.FirstName).HasMaxLength(100).IsRequired();
-            b.Property(x => x.LastName).HasMaxLength(100).IsRequired();
-            b.Property(x => x.PhoneNumber).HasMaxLength(20).IsRequired();
-            b.Property(x => x.Email).HasMaxLength(200);
+            // Id == IdentityUser.Id — no identity columns here (name/email live in AuthSvc)
             b.Property(x => x.VehicleType).HasMaxLength(50);
             b.Property(x => x.VehiclePlate).HasMaxLength(20);
-            b.Property(x => x.Status).HasConversion<string>().HasMaxLength(50);
-            b.Property(x => x.Rating).HasPrecision(3, 2);
-            b.HasIndex(x => x.PhoneNumber).IsUnique();
+            b.Property(x => x.Status).HasConversion<string>().HasMaxLength(50).IsRequired();
+            b.Property(x => x.IsOnline).IsRequired();
+            b.Property(x => x.Latitude).HasColumnName("Latitude");
+            b.Property(x => x.Longitude).HasColumnName("Longitude");
+            b.Property(x => x.TotalDeliveries).IsRequired();
+            b.Property(x => x.TotalEarnings).HasColumnType("decimal(18,2)").IsRequired();
+            b.Property(x => x.AverageRating).IsRequired();
+            b.Property(x => x.RatingCount).IsRequired();
+            b.Property(x => x.IsActive).IsRequired();
             b.HasIndex(x => x.Status);
+            b.HasIndex(x => x.IsOnline);
         });
 
         modelBuilder.Entity<DeliveryTask>(b =>

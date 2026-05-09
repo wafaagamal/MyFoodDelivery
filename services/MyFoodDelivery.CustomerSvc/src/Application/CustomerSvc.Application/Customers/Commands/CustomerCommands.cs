@@ -4,22 +4,18 @@ using MediatR;
 namespace CustomerSvc.Application.Customers.Commands;
 
 /// <summary>
-/// Command to register a new customer (typically from IdentityServer user creation).
+/// Command to register a new customer (from UserCreatedEto event).
+/// Identity data lives in AuthSvc — only UserId is needed here.
 /// </summary>
 public record RegisterCustomerCommand(
-    Guid UserId,
-    string Email,
-    string FirstName,
-    string LastName,
-    string? PhoneNumber = null) : IRequest<Guid>;
+    Guid UserId) : IRequest<Guid>;
 
 /// <summary>
-/// Command to update a customer's profile.
+/// Command to update a customer's profile (domain-specific only).
+/// Name/email updates go to AuthSvc, not here.
 /// </summary>
 public record UpdateCustomerProfileCommand(
     Guid CustomerId,
-    string FirstName,
-    string LastName,
     string? PhoneNumber = null,
     string? ProfileImageUrl = null) : IRequest;
 

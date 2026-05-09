@@ -1,4 +1,5 @@
 using DeliverySvc.Application.Contracts.DeliveryTasks;
+using DeliverySvc.Application.Contracts.DeliveryTasks.Dtos;
 using DeliverySvc.Domain.DeliveryTasks;
 using DeliverySvc.Domain.Riders;
 using Microsoft.EntityFrameworkCore;
@@ -7,7 +8,7 @@ using Volo.Abp.Domain.Repositories;
 
 namespace DeliverySvc.Application.DeliveryTasks;
 
-public class DeliveryTaskAppService : ApplicationService
+public class DeliveryTaskAppService : ApplicationService, IDeliveryTaskAppService
 {
     private readonly IRepository<DeliveryTask, Guid> _taskRepository;
     private readonly IRepository<Rider, Guid> _riderRepository;
@@ -24,13 +25,6 @@ public class DeliveryTaskAppService : ApplicationService
     {
         var task = await _taskRepository.GetAsync(id);
         var dto = ObjectMapper.Map<DeliveryTask, DeliveryTaskDto>(task);
-
-        if (task.RiderId.HasValue)
-        {
-            var rider = await _riderRepository.FindAsync(task.RiderId.Value);
-            dto.RiderName = rider?.FullName;
-        }
-
         return dto;
     }
 
@@ -93,7 +87,7 @@ public class DeliveryTaskAppService : ApplicationService
             if (rider != null)
             {
                 rider.UpdateStatus(RiderStatus.Available);
-                rider.RecordDelivery(5.0);
+                rider.RecordDelivery(5.0m, 5.0);
                 await _riderRepository.UpdateAsync(rider);
             }
         }

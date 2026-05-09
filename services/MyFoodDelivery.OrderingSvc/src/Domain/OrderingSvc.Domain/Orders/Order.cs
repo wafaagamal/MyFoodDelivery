@@ -4,6 +4,7 @@ using System.Linq;
 using OrderingSvc.Domain.Orders.Events;
 using Volo.Abp;
 using Volo.Abp.Domain.Entities.Auditing;
+using OrderCancellationReason = MyFoodDelivery.Shared.Events.OrderCancellationReason;
 
 namespace OrderingSvc.Domain.Orders;
 
@@ -19,7 +20,12 @@ public class Order : FullAuditedAggregateRoot<Guid>
 
     public Guid CustomerId { get; private set; }
     public Guid RestaurantId { get; private set; }
+    public string? RestaurantName { get; private set; }
     public Guid? RiderId { get; private set; }
+    public string? RiderName { get; private set; }
+    public string? RiderPhone { get; private set; }
+    public double? RiderLatitude { get; private set; }
+    public double? RiderLongitude { get; private set; }
     public string OrderNumber { get; private set; } = default!;
     public OrderStatus Status { get; private set; }
     public DeliveryAddress DeliveryAddress { get; private set; } = default!;
@@ -47,6 +53,10 @@ public class Order : FullAuditedAggregateRoot<Guid>
     public int EstimatedDeliveryMinutes { get; private set; }
     public DateTime? EstimatedDeliveryTime { get; private set; }
 
+    // Payment
+    public int PaymentMethod { get; private set; }   // maps to PaymentMethod enum (0=Cash,1=Card,2=Wallet)
+    public Guid? PaymentMethodId { get; private set; } // saved card / wallet id
+
     private Order() { } // EF Core
 
     /// <summary>
@@ -61,17 +71,23 @@ public class Order : FullAuditedAggregateRoot<Guid>
         string? specialInstructions,
         decimal deliveryFee,
         decimal serviceFee,
-        int estimatedPreparationMinutes)
+        int estimatedPreparationMinutes,
+        int paymentMethod = 0,
+        Guid? paymentMethodId = null,
+        string? restaurantName = null)
         : base(id)
     {
         CustomerId = customerId;
         RestaurantId = restaurantId;
+        RestaurantName = restaurantName;
         OrderNumber = orderNumber ?? throw new ArgumentNullException(nameof(orderNumber));
         DeliveryAddress = deliveryAddress ?? throw new ArgumentNullException(nameof(deliveryAddress));
         SpecialInstructions = specialInstructions;
         DeliveryFee = deliveryFee;
         ServiceFee = serviceFee;
         EstimatedPreparationMinutes = estimatedPreparationMinutes;
+        PaymentMethod = paymentMethod;
+        PaymentMethodId = paymentMethodId;
         Status = OrderStatus.Pending;
         
         AddLocalEvent(new OrderCreatedDomainEvent(Id, customerId, restaurantId));
@@ -203,12 +219,14 @@ public class Order : FullAuditedAggregateRoot<Guid>
         AddLocalEvent(new OrderReadyForPickupDomainEvent(Id, RestaurantId));
     }
 
-    public void AssignRider(Guid riderId, string riderName, int estimatedDeliveryMinutes)
+    public void AssignRider(Guid riderId, string riderName, string? riderPhone, int estimatedDeliveryMinutes)
     {
         if (Status != OrderStatus.ReadyForPickup && Status != OrderStatus.PaymentConfirmed)
             throw new BusinessException("Order:InvalidStatusForRiderAssignment");
 
         RiderId = riderId;
+        RiderName = riderName;
+        RiderPhone = riderPhone;
         EstimatedDeliveryMinutes = estimatedDeliveryMinutes;
         EstimatedDeliveryTime = DateTime.UtcNow.AddMinutes(estimatedDeliveryMinutes);
         
@@ -218,6 +236,18 @@ public class Order : FullAuditedAggregateRoot<Guid>
         }
         
         AddLocalEvent(new RiderAssignedDomainEvent(Id, riderId, riderName));
+    }
+
+    /// <summary>
+    /// Updates the rider's last known location (called when location update events are received).
+    /// </summary>
+    public void UpdateRiderLocation(double latitude, double longitude)
+    {
+        if (!RiderId.HasValue)
+            throw new BusinessException("Order:NoRiderAssigned");
+
+        RiderLatitude = latitude;
+        RiderLongitude = longitude;
     }
 
     public void MarkPickedUp()
@@ -256,7 +286,7 @@ public class Order : FullAuditedAggregateRoot<Guid>
 
     public void Cancel(string reason, OrderCancellationReason cancellationReason)
     {
-        if (Status == OrderStatus.Completed || Status == OrderStatus.Cancelled)
+        if (Status != OrderStatus.Pending && Status != OrderStatus.PaymentConfirmed)
             throw new BusinessException("Order:CannotCancel");
 
         var previousStatus = Status;
@@ -319,16 +349,4 @@ public enum OrderStatus
     Cancelled
 }
 
-/// <summary>
-/// Cancellation reason enum.
-/// </summary>
-public enum OrderCancellationReason
-{
-    CustomerRequested,
-    RestaurantUnavailable,
-    PaymentFailed,
-    NoRiderAvailable,
-    DeliveryTimeout,
-    FraudSuspected,
-    Other
-}
+

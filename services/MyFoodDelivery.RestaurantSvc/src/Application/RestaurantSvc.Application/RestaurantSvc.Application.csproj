@@ -12,13 +12,14 @@
     <PackageReference Include="Volo.Abp.AutoMapper" Version="8.2.0" />
     <PackageReference Include="Volo.Abp.EventBus.RabbitMQ" Version="8.2.0" />
     <PackageReference Include="MediatR" Version="12.2.0" />
-    <PackageReference Include="MongoDB.Driver" Version="2.24.0" />
+    <PackageReference Include="MongoDB.Driver" Version="2.25.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\RestaurantSvc.Application.Contracts\RestaurantSvc.Application.Contracts.csproj" />
     <ProjectReference Include="..\..\Domain\RestaurantSvc.Domain\RestaurantSvc.Domain.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\RestaurantSvc.Infrastructure\RestaurantSvc.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\..\MyFoodDelivery.Shared\MyFoodDelivery.Shared.csproj" />
   </ItemGroup>
 

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using OrderingSvc.Application.Contracts.Orders;
+using OrderingSvc.Application.Contracts.Orders.Dtos;
 using OrderingSvc.Application.Contracts.Permissions;
 using OrderingSvc.Domain.Orders;
 using Volo.Abp;
@@ -15,8 +16,7 @@ using Volo.Abp.Http.Modeling;
 using MyFoodDelivery.Shared.Events;
 using DomainOrderStatus = OrderingSvc.Domain.Orders.OrderStatus;
 using EventOrderStatus = MyFoodDelivery.Shared.Events.OrderStatus;
-using DomainCancellationReason = OrderingSvc.Domain.Orders.OrderCancellationReason;
-using EventCancellationReason = MyFoodDelivery.Shared.Events.OrderCancellationReason;
+using OrderCancellationReason = MyFoodDelivery.Shared.Events.OrderCancellationReason;
 
 namespace OrderingSvc.Application.Orders;
 
@@ -128,14 +128,14 @@ public class RestaurantOrderAppService : ApplicationService, IRestaurantOrderApp
             throw new BusinessException("Order:NotForRestaurant");
         }
 
-        order.Cancel(reason, DomainCancellationReason.RestaurantUnavailable);
+        order.Cancel(reason, OrderCancellationReason.RestaurantUnavailable);
         await _orderRepository.UpdateAsync(order);
 
         await _eventBus.PublishAsync(new OrderCancelledEto(
             order.Id,
             order.CustomerId,
             order.RiderId,
-            EventCancellationReason.RestaurantUnavailable,
+            OrderCancellationReason.RestaurantUnavailable,
             reason,
             DateTime.UtcNow));
     }

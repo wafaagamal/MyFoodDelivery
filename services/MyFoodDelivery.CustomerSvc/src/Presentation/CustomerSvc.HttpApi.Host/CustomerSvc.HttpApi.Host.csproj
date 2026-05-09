@@ -27,6 +27,7 @@
   <ItemGroup>
     <ProjectReference Include="..\CustomerSvc.HttpApi\CustomerSvc.HttpApi.csproj" />
     <ProjectReference Include="..\..\Infrastructure\CustomerSvc.Infrastructure\CustomerSvc.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\CustomerSvc.BackgroundJobs\CustomerSvc.BackgroundJobs.csproj" />
   </ItemGroup>
 
 </Project>

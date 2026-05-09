@@ -37,12 +37,7 @@ public class CustomerCreatedDomainEventHandler :
             "Publishing CustomerRegisteredEto for customer: {CustomerId}",
             customer.Id);
 
-        await _distributedEventBus.PublishAsync(new CustomerRegisteredEto(
-            customer.Id,
-            customer.Email.Value,
-            customer.FirstName,
-            customer.LastName,
-            customer.Phone?.Value));
+        await _distributedEventBus.PublishAsync(new CustomerRegisteredEto(customer.Id));
     }
 }
 

@@ -4,8 +4,10 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RestaurantSvc.Application.Contracts.Restaurants.Dtos;
 using RestaurantSvc.Application.Restaurants.Commands;
 using RestaurantSvc.Application.Restaurants.Queries;
+using RestaurantSvc.HttpApi.Dtos;
 using Volo.Abp.AspNetCore.Mvc;
 using Volo.Abp.Users;
 
@@ -31,7 +33,7 @@ public class RestaurantController : AbpController
     /// </summary>
     [HttpGet]
     [AllowAnonymous]
-    public async Task<ActionResult<PagedResultDto<RestaurantListDto>>> Search(
+    public async Task<ActionResult<RestaurantPagedResult<RestaurantListDto>>> Search(
         [FromQuery] string? search,
         [FromQuery] string? cuisine,
         [FromQuery] double? lat,
@@ -184,37 +186,3 @@ public class RestaurantController : AbpController
 
     #endregion
 }
-
-#region Request Models
-
-public record RegisterRestaurantRequest(
-    string Name,
-    string Description,
-    string CuisineType,
-    string PhoneNumber,
-    string Email,
-    string Street,
-    string BuildingNumber,
-    string City,
-    string? District,
-    string PostalCode,
-    string Country,
-    double Latitude,
-    double Longitude,
-    decimal MinimumOrderAmount,
-    decimal DeliveryFee,
-    int EstimatedDeliveryMinutes);
-
-public record UpdateRestaurantRequest(
-    string Name,
-    string Description,
-    string CuisineType,
-    string PhoneNumber,
-    string Email,
-    decimal MinimumOrderAmount,
-    decimal DeliveryFee,
-    int EstimatedDeliveryMinutes);
-
-public record PauseOrdersRequest(string Reason);
-
-#endregion

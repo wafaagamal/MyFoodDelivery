@@ -23,8 +23,13 @@ public class AddPaymentMethodCommandHandler : IRequestHandler<AddPaymentMethodCo
     [UnitOfWork]
     public async Task<Guid> Handle(AddPaymentMethodCommand request, CancellationToken cancellationToken)
     {
-        var customer = await _customerRepository.GetWithPaymentMethodsAsync(request.CustomerId, cancellationToken)
-            ?? throw new BusinessException("Customer:NotFound");
+        var customer = await _customerRepository.GetWithPaymentMethodsAsync(request.CustomerId, cancellationToken);
+        if (customer == null)
+        {
+            customer = new Customer(request.CustomerId);
+            await _customerRepository.InsertAsync(customer, autoSave: true, cancellationToken: cancellationToken);
+            customer = (await _customerRepository.GetWithPaymentMethodsAsync(request.CustomerId, cancellationToken))!;
+        }
 
         if (!Enum.TryParse<PaymentMethodType>(request.Type, true, out var paymentType))
         {

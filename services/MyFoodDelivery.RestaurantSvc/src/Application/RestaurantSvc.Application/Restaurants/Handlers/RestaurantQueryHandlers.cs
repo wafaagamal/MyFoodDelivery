@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using MediatR;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
+using RestaurantSvc.Application.Contracts.Restaurants.Dtos;
 using RestaurantSvc.Application.Restaurants.Queries;
 using RestaurantSvc.Domain.Restaurants;
 
@@ -14,7 +15,7 @@ namespace RestaurantSvc.Application.Restaurants.Handlers;
 public class RestaurantQueryHandlers :
     IRequestHandler<GetRestaurantByIdQuery, RestaurantDetailDto?>,
     IRequestHandler<GetRestaurantsByOwnerQuery, List<RestaurantListDto>>,
-    IRequestHandler<SearchRestaurantsQuery, PagedResultDto<RestaurantListDto>>,
+    IRequestHandler<SearchRestaurantsQuery, RestaurantPagedResult<RestaurantListDto>>,
     IRequestHandler<GetMenuQuery, MenuDto?>,
     IRequestHandler<GetNearbyRestaurantsQuery, List<NearbyRestaurantDto>>
 {
@@ -45,7 +46,7 @@ public class RestaurantQueryHandlers :
         return restaurants.Select(r => MapToListDto(r, null)).ToList();
     }
 
-    public async Task<PagedResultDto<RestaurantListDto>> Handle(SearchRestaurantsQuery request, CancellationToken cancellationToken)
+    public async Task<RestaurantPagedResult<RestaurantListDto>> Handle(SearchRestaurantsQuery request, CancellationToken cancellationToken)
     {
         var filter = Builders<Restaurant>.Filter.Eq(r => r.IsActive, true);
 
@@ -99,7 +100,7 @@ public class RestaurantQueryHandlers :
             items = items.Where(i => i.DistanceKm <= request.RadiusKm.Value).ToList();
         }
 
-        return new PagedResultDto<RestaurantListDto>(items, (int)totalCount);
+        return new RestaurantPagedResult<RestaurantListDto>(items, (int)totalCount);
     }
 
     public async Task<MenuDto?> Handle(GetMenuQuery request, CancellationToken cancellationToken)

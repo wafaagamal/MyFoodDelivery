@@ -8,93 +8,31 @@ namespace CustomerSvc.Infrastructure.EntityFrameworkCore.Configurations;
 
 /// <summary>
 /// EF Core configuration for Customer aggregate root.
+/// Id = IdentityUser.Id — no identity columns here (name/email live in AuthSvc).
 /// </summary>
 public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
 {
     public void Configure(EntityTypeBuilder<Customer> builder)
     {
         builder.ToTable("Customers");
-
         builder.ConfigureByConvention();
-
         builder.HasKey(c => c.Id);
 
-        builder.Property(c => c.FirstName)
-            .IsRequired()
-            .HasMaxLength(100);
-
-        builder.Property(c => c.LastName)
-            .IsRequired()
-            .HasMaxLength(100);
-
-        // Value object: Email
-        builder.OwnsOne(c => c.Email, email =>
-        {
-            email.Property(e => e.Value)
-                .HasColumnName("Email")
-                .IsRequired()
-                .HasMaxLength(254);
-
-            email.HasIndex(e => e.Value)
-                .IsUnique()
-                .HasDatabaseName("IX_Customers_Email");
-        });
-
-        // Value object: PhoneNumber (optional)
-        builder.OwnsOne(c => c.Phone, phone =>
-        {
-            phone.Property(p => p.Value)
-                .HasColumnName("PhoneNumber")
-                .HasMaxLength(20);
-
-            phone.Property(p => p.CountryCode)
-                .HasColumnName("PhoneCountryCode")
-                .HasMaxLength(5);
-        });
-
-        builder.Property(c => c.ProfileImageUrl)
-            .HasMaxLength(500);
-
-        builder.Property(c => c.LoyaltyPoints)
-            .IsRequired();
-
-        builder.Property(c => c.LifetimeLoyaltyPoints)
-            .IsRequired();
-
+        builder.Property(c => c.LoyaltyPoints).IsRequired();
+        builder.Property(c => c.LifetimeLoyaltyPoints).IsRequired();
         builder.Property(c => c.LoyaltyTier)
-            .IsRequired()
-            .HasConversion<string>()
-            .HasMaxLength(20);
+            .IsRequired().HasConversion<string>().HasMaxLength(20);
+        builder.Property(c => c.IsActive).IsRequired().HasDefaultValue(true);
+        builder.Property(c => c.TotalOrders).IsRequired().HasDefaultValue(0);
 
-        builder.Property(c => c.IsActive)
-            .IsRequired()
-            .HasDefaultValue(true);
-
-        builder.Property(c => c.TotalOrders)
-            .IsRequired()
-            .HasDefaultValue(0);
-
-        // Navigation: Addresses (owned collection)
         builder.HasMany(c => c.Addresses)
-            .WithOne()
-            .HasForeignKey("CustomerId")
-            .OnDelete(DeleteBehavior.Cascade);
-
-        // Navigation: PaymentMethods (owned collection)
+            .WithOne().HasForeignKey("CustomerId").OnDelete(DeleteBehavior.Cascade);
         builder.HasMany(c => c.PaymentMethods)
-            .WithOne()
-            .HasForeignKey("CustomerId")
-            .OnDelete(DeleteBehavior.Cascade);
+            .WithOne().HasForeignKey("CustomerId").OnDelete(DeleteBehavior.Cascade);
 
-        // Indexes for common queries
-        builder.HasIndex(c => c.IsActive)
-            .HasDatabaseName("IX_Customers_IsActive");
-
-        builder.HasIndex(c => c.LoyaltyTier)
-            .HasDatabaseName("IX_Customers_LoyaltyTier");
-
-        builder.HasIndex(c => c.LastOrderDate)
-            .HasDatabaseName("IX_Customers_LastOrderDate");
+        builder.HasIndex(c => c.IsActive).HasDatabaseName("IX_Customers_IsActive");
+        builder.HasIndex(c => c.LoyaltyTier).HasDatabaseName("IX_Customers_LoyaltyTier");
+        builder.HasIndex(c => c.LastOrderDate).HasDatabaseName("IX_Customers_LastOrderDate");
     }
 }
 

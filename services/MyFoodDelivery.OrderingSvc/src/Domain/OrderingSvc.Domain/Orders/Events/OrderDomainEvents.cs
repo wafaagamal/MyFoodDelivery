@@ -1,4 +1,6 @@
 using System;
+using OrderCancellationReason = MyFoodDelivery.Shared.Events.OrderCancellationReason;
+using OrderStatus = OrderingSvc.Domain.Orders.OrderStatus;
 
 namespace OrderingSvc.Domain.Orders.Events;
 

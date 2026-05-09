@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AuthSvc.Application</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Volo.Abp.Account.Application" Version="8.2.0" />
+    <PackageReference Include="Volo.Abp.Identity.Application" Version="8.2.0" />
+    <PackageReference Include="Volo.Abp.EventBus.RabbitMQ" Version="8.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AuthSvc.Application.Contracts\AuthSvc.Application.Contracts.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\AuthSvc.Infrastructure\AuthSvc.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\MyFoodDelivery.Shared\MyFoodDelivery.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

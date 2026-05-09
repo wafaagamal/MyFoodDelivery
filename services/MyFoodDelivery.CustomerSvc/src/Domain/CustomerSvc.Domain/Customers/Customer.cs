@@ -9,14 +9,15 @@ using Volo.Abp.Domain.Entities.Auditing;
 namespace CustomerSvc.Domain.Customers;
 
 /// <summary>
-/// Customer aggregate root - the main entity representing a customer.
-/// Protects all invariants and raises domain events for state changes.
+/// Customer aggregate root.
+/// Id == IdentityUser.Id from AuthSvc (shared GUID by convention, no FK).
+/// Identity data (name, email) lives in AuthSvc — get from JWT claims.
+/// This entity owns only customer-domain data: loyalty, addresses, payments.
 /// </summary>
 public class Customer : FullAuditedAggregateRoot<Guid>
 {
     private const int MaxAddresses = 10;
     private const int MaxPaymentMethods = 5;
-    private const int PointsPerTierLevel = 1000;
 
     private readonly List<DeliveryAddress> _addresses = new();
     private readonly List<PaymentMethod> _paymentMethods = new();
@@ -24,11 +25,7 @@ public class Customer : FullAuditedAggregateRoot<Guid>
     public IReadOnlyCollection<DeliveryAddress> Addresses => _addresses.AsReadOnly();
     public IReadOnlyCollection<PaymentMethod> PaymentMethods => _paymentMethods.AsReadOnly();
 
-    public string FirstName { get; private set; } = default!;
-    public string LastName { get; private set; } = default!;
-    public Email Email { get; private set; } = default!;
-    public PhoneNumber? Phone { get; private set; }
-    public string? ProfileImageUrl { get; private set; }
+    // Domain-specific data only — no identity fields
     public int LoyaltyPoints { get; private set; }
     public int LifetimeLoyaltyPoints { get; private set; }
     public LoyaltyTier LoyaltyTier { get; private set; }
@@ -36,78 +33,25 @@ public class Customer : FullAuditedAggregateRoot<Guid>
     public DateTime? LastOrderDate { get; private set; }
     public int TotalOrders { get; private set; }
 
+    // Optional customer-owned profile data (name/email stay in AuthSvc)
+    public string? PhoneNumber { get; private set; }
+    public string? ProfileImageUrl { get; private set; }
+
     private Customer() { } // EF Core
 
     /// <summary>
-    /// Creates a new Customer aggregate.
+    /// Creates a new Customer. Id = IdentityUser.Id.
     /// </summary>
-    public Customer(
-        Guid id,
-        string firstName,
-        string lastName,
-        Email email,
-        PhoneNumber? phone = null)
-        : base(id)
+    public Customer(Guid id) : base(id)
     {
-        SetName(firstName, lastName);
-        Email = email ?? throw new ArgumentNullException(nameof(email));
-        Phone = phone;
         LoyaltyPoints = 0;
         LifetimeLoyaltyPoints = 0;
         LoyaltyTier = LoyaltyTier.Bronze;
         IsActive = true;
         TotalOrders = 0;
 
-        AddLocalEvent(new CustomerCreatedDomainEvent(
-            id, 
-            email.Value, 
-            firstName, 
-            lastName, 
-            phone?.Value));
+        AddLocalEvent(new CustomerCreatedDomainEvent(id));
     }
-
-    #region Profile Management
-
-    public void UpdateProfile(string firstName, string lastName, PhoneNumber? phone)
-    {
-        EnsureActive();
-        SetName(firstName, lastName);
-        Phone = phone;
-
-        AddLocalEvent(new CustomerProfileUpdatedDomainEvent(
-            Id, 
-            FirstName, 
-            LastName, 
-            Phone?.Value));
-    }
-
-    public void SetProfileImage(string? imageUrl)
-    {
-        EnsureActive();
-        ProfileImageUrl = imageUrl;
-    }
-
-    private void SetName(string firstName, string lastName)
-    {
-        if (string.IsNullOrWhiteSpace(firstName))
-            throw new BusinessException("Customer:FirstNameRequired");
-        
-        if (firstName.Length > 100)
-            throw new BusinessException("Customer:FirstNameTooLong");
-        
-        if (string.IsNullOrWhiteSpace(lastName))
-            throw new BusinessException("Customer:LastNameRequired");
-        
-        if (lastName.Length > 100)
-            throw new BusinessException("Customer:LastNameTooLong");
-
-        FirstName = firstName.Trim();
-        LastName = lastName.Trim();
-    }
-
-    public string GetFullName() => $"{FirstName} {LastName}";
-
-    #endregion
 
     #region Address Management
 
@@ -439,6 +383,17 @@ public class Customer : FullAuditedAggregateRoot<Guid>
     {
         TotalOrders++;
         LastOrderDate = DateTime.UtcNow;
+    }
+
+    #endregion
+
+    #region Profile
+
+    public void UpdateContactInfo(string? phoneNumber, string? profileImageUrl)
+    {
+        EnsureActive();
+        PhoneNumber = phoneNumber;
+        ProfileImageUrl = profileImageUrl;
     }
 
     #endregion

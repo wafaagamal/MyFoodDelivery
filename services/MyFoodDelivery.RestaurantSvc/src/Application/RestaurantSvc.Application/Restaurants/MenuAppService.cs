@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using RestaurantSvc.Application.Contracts.Permissions;
 using RestaurantSvc.Application.Contracts.Restaurants;
+using RestaurantSvc.Application.Contracts.Restaurants.Dtos;
 using RestaurantSvc.Domain.Restaurants;
 using Volo.Abp;
 using Volo.Abp.Application.Services;
@@ -41,26 +42,19 @@ public class MenuAppService : ApplicationService, IMenuAppService
         var categories = restaurant.Categories
             .Where(c => c.IsActive)
             .OrderBy(c => c.DisplayOrder)
-            .Select(c => new MenuCategoryDto
-            {
-                Id = c.Id,
-                Name = c.Name,
-                Description = c.Description,
-                DisplayOrder = c.DisplayOrder,
-                Items = restaurant.MenuItems
+            .Select(c => new MenuCategoryDto(
+                c.Id,
+                c.Name,
+                c.Description,
+                c.DisplayOrder,
+                restaurant.MenuItems
                     .Where(m => m.CategoryId == c.Id && m.IsActive)
                     .OrderBy(m => m.DisplayOrder)
-                    .Select(m => ObjectMapper.Map<MenuItem, MenuItemDto>(m))
-                    .ToList()
-            })
+                    .Select(MapToMenuItemDto)
+                    .ToList()))
             .ToList();
 
-        return new MenuDto
-        {
-            RestaurantId = restaurant.Id,
-            RestaurantName = restaurant.Name,
-            Categories = categories
-        };
+        return new MenuDto(restaurant.Id, restaurant.Name, categories);
     }
 
     [AllowAnonymous]
@@ -68,7 +62,7 @@ public class MenuAppService : ApplicationService, IMenuAppService
     {
         var restaurant = await _restaurantRepository.GetAsync(restaurantId);
         var menuItem = restaurant.GetMenuItemOrThrow(menuItemId);
-        return ObjectMapper.Map<MenuItem, MenuItemDto>(menuItem);
+        return MapToMenuItemDto(menuItem);
     }
 
     #endregion
@@ -85,14 +79,7 @@ public class MenuAppService : ApplicationService, IMenuAppService
         await _restaurantRepository.UpdateAsync(restaurant);
 
         var category = restaurant.Categories.First(c => c.Id == categoryId);
-        return new MenuCategoryDto
-        {
-            Id = category.Id,
-            Name = category.Name,
-            Description = category.Description,
-            DisplayOrder = category.DisplayOrder,
-            Items = new List<MenuItemDto>()
-        };
+        return new MenuCategoryDto(category.Id, category.Name, category.Description, category.DisplayOrder, new List<MenuItemDto>());
     }
 
     [Authorize(RestaurantSvcPermissions.Restaurants.ManageMenu)]
@@ -105,17 +92,12 @@ public class MenuAppService : ApplicationService, IMenuAppService
         await _restaurantRepository.UpdateAsync(restaurant);
 
         var category = restaurant.Categories.First(c => c.Id == categoryId);
-        return new MenuCategoryDto
-        {
-            Id = category.Id,
-            Name = category.Name,
-            Description = category.Description,
-            DisplayOrder = category.DisplayOrder,
-            Items = restaurant.MenuItems
+        return new MenuCategoryDto(
+            category.Id, category.Name, category.Description, category.DisplayOrder,
+            restaurant.MenuItems
                 .Where(m => m.CategoryId == categoryId && m.IsActive)
-                .Select(m => ObjectMapper.Map<MenuItem, MenuItemDto>(m))
-                .ToList()
-        };
+                .Select(MapToMenuItemDto)
+                .ToList());
     }
 
     [Authorize(RestaurantSvcPermissions.Restaurants.ManageMenu)]
@@ -154,7 +136,7 @@ public class MenuAppService : ApplicationService, IMenuAppService
         await _restaurantRepository.UpdateAsync(restaurant);
 
         var menuItem = restaurant.GetMenuItemOrThrow(menuItemId);
-        return ObjectMapper.Map<MenuItem, MenuItemDto>(menuItem);
+        return MapToMenuItemDto(menuItem);
     }
 
     [Authorize(RestaurantSvcPermissions.Restaurants.ManageMenu)]
@@ -179,7 +161,7 @@ public class MenuAppService : ApplicationService, IMenuAppService
         await _restaurantRepository.UpdateAsync(restaurant);
 
         var menuItem = restaurant.GetMenuItemOrThrow(menuItemId);
-        return ObjectMapper.Map<MenuItem, MenuItemDto>(menuItem);
+        return MapToMenuItemDto(menuItem);
     }
 
     [Authorize(RestaurantSvcPermissions.Restaurants.ManageMenu)]
@@ -224,6 +206,11 @@ public class MenuAppService : ApplicationService, IMenuAppService
     #endregion
 
     #region Private Methods
+
+    private static MenuItemDto MapToMenuItemDto(MenuItem m) =>
+        new MenuItemDto(m.Id, m.CategoryId, m.Name, m.Description, m.Price, m.DiscountedPrice, m.ImageUrl,
+            m.PreparationTimeMinutes, m.IsVegetarian, m.IsVegan, m.IsGlutenFree, m.IsSpicy, m.Allergens,
+            m.IsAvailable, m.IsFeatured);
 
     private async Task CheckOwnershipAsync(Restaurant restaurant)
     {

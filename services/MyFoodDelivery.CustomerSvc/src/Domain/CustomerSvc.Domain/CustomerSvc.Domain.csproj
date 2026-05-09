@@ -12,6 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\CustomerSvc.Domain.Shared\CustomerSvc.Domain.Shared.csproj" />
     <ProjectReference Include="..\..\..\..\MyFoodDelivery.Shared\MyFoodDelivery.Shared.csproj" />
   </ItemGroup>
 

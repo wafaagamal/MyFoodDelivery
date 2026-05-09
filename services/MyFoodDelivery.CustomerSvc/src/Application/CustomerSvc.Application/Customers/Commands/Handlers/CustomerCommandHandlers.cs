@@ -13,7 +13,8 @@ namespace CustomerSvc.Application.Customers.Commands.Handlers;
 
 /// <summary>
 /// Handler for RegisterCustomerCommand.
-/// Creates a new Customer aggregate when a user is created in IdentityServer.
+/// Creates a new Customer (domain record) when a user registers via AuthSvc.
+/// Id is set to UserId — same GUID, no FK needed.
 /// </summary>
 public class RegisterCustomerCommandHandler : IRequestHandler<RegisterCustomerCommand, Guid>
 {
@@ -31,31 +32,18 @@ public class RegisterCustomerCommandHandler : IRequestHandler<RegisterCustomerCo
     [UnitOfWork]
     public async Task<Guid> Handle(RegisterCustomerCommand request, CancellationToken cancellationToken)
     {
-        // Idempotency check - customer might already exist
-        var existing = await _customerRepository.FindByEmailAsync(request.Email, cancellationToken);
+        // Idempotency: customer might already exist
+        var existing = await _customerRepository.FindAsync(request.UserId, cancellationToken: cancellationToken);
         if (existing != null)
         {
-            _logger.LogInformation("Customer already exists for email {Email}, returning existing ID {CustomerId}", 
-                request.Email, existing.Id);
+            _logger.LogInformation("Customer already exists for UserId {UserId}", request.UserId);
             return existing.Id;
         }
 
-        var email = new Email(request.Email);
-        var phone = string.IsNullOrWhiteSpace(request.PhoneNumber) 
-            ? null 
-            : new PhoneNumber(request.PhoneNumber);
-
-        var customer = new Customer(
-            request.UserId,
-            request.FirstName,
-            request.LastName,
-            email,
-            phone);
-
+        var customer = new Customer(request.UserId);
         await _customerRepository.InsertAsync(customer, autoSave: true, cancellationToken: cancellationToken);
 
-        _logger.LogInformation("Customer {CustomerId} created for email {Email}", customer.Id, request.Email);
-
+        _logger.LogInformation("Customer {CustomerId} created for user {UserId}", customer.Id, request.UserId);
         return customer.Id;
     }
 }
@@ -75,19 +63,14 @@ public class UpdateCustomerProfileCommandHandler : IRequestHandler<UpdateCustome
     [UnitOfWork]
     public async Task Handle(UpdateCustomerProfileCommand request, CancellationToken cancellationToken)
     {
-        var customer = await _customerRepository.GetAsync(request.CustomerId, cancellationToken: cancellationToken);
-
-        var phone = string.IsNullOrWhiteSpace(request.PhoneNumber) 
-            ? null 
-            : new PhoneNumber(request.PhoneNumber);
-
-        customer.UpdateProfile(request.FirstName, request.LastName, phone);
-
-        if (request.ProfileImageUrl != null)
+        var customer = await _customerRepository.FindAsync(request.CustomerId, cancellationToken: cancellationToken);
+        if (customer == null)
         {
-            customer.SetProfileImage(request.ProfileImageUrl);
+            customer = new Customer(request.CustomerId);
+            await _customerRepository.InsertAsync(customer, autoSave: true, cancellationToken: cancellationToken);
         }
 
+        customer.UpdateContactInfo(request.PhoneNumber, request.ProfileImageUrl);
         await _customerRepository.UpdateAsync(customer, autoSave: true, cancellationToken: cancellationToken);
     }
 }
@@ -107,13 +90,12 @@ public class AddDeliveryAddressCommandHandler : IRequestHandler<AddDeliveryAddre
     [UnitOfWork]
     public async Task<Guid> Handle(AddDeliveryAddressCommand request, CancellationToken cancellationToken)
     {
-        var customer = await _customerRepository.GetWithAddressesAsync(request.CustomerId, cancellationToken)
-            ?? throw new BusinessException("Customer:NotFound");
-
-        GeoCoordinate? coordinates = null;
-        if (request.Latitude.HasValue && request.Longitude.HasValue)
+        var customer = await _customerRepository.GetWithAddressesAsync(request.CustomerId, cancellationToken);
+        if (customer == null)
         {
-            coordinates = new GeoCoordinate(request.Latitude.Value, request.Longitude.Value);
+            customer = new Customer(request.CustomerId);
+            await _customerRepository.InsertAsync(customer, autoSave: true, cancellationToken: cancellationToken);
+            customer = (await _customerRepository.GetWithAddressesAsync(request.CustomerId, cancellationToken))!;
         }
 
         var addressId = customer.AddDeliveryAddress(
@@ -126,7 +108,9 @@ public class AddDeliveryAddressCommandHandler : IRequestHandler<AddDeliveryAddre
             request.District,
             request.PostalCode,
             request.Country,
-            coordinates,
+            request.Latitude.HasValue && request.Longitude.HasValue
+                ? new GeoCoordinate(request.Latitude.Value, request.Longitude.Value)
+                : null,
             request.DeliveryInstructions,
             request.IsDefault);
 
@@ -154,12 +138,6 @@ public class UpdateDeliveryAddressCommandHandler : IRequestHandler<UpdateDeliver
         var customer = await _customerRepository.GetWithAddressesAsync(request.CustomerId, cancellationToken)
             ?? throw new BusinessException("Customer:NotFound");
 
-        GeoCoordinate? coordinates = null;
-        if (request.Latitude.HasValue && request.Longitude.HasValue)
-        {
-            coordinates = new GeoCoordinate(request.Latitude.Value, request.Longitude.Value);
-        }
-
         customer.UpdateDeliveryAddress(
             request.AddressId,
             request.Label,
@@ -171,7 +149,9 @@ public class UpdateDeliveryAddressCommandHandler : IRequestHandler<UpdateDeliver
             request.District,
             request.PostalCode,
             request.Country,
-            coordinates,
+            request.Latitude.HasValue && request.Longitude.HasValue
+                ? new GeoCoordinate(request.Latitude.Value, request.Longitude.Value)
+                : null,
             request.DeliveryInstructions);
 
         await _customerRepository.UpdateAsync(customer, autoSave: true, cancellationToken: cancellationToken);

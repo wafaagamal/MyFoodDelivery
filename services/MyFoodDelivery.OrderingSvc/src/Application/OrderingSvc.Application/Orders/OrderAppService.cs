@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using OrderingSvc.Application.Contracts.Orders;
+using OrderingSvc.Application.Contracts.Orders.Dtos;
 using OrderingSvc.Application.Contracts.Permissions;
 using OrderingSvc.Domain.Orders;
-using OrderingSvc.Application.Services;
+using OrderingSvc.Domain.Services;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
@@ -15,9 +17,6 @@ using Volo.Abp.EventBus.Distributed;
 using MyFoodDelivery.Shared.Events;
 using DomainOrderStatus = OrderingSvc.Domain.Orders.OrderStatus;
 using EventOrderStatus = MyFoodDelivery.Shared.Events.OrderStatus;
-using ContractOrderStatus = OrderingSvc.Application.Contracts.Orders.OrderStatus;
-using DomainCancellationReason = OrderingSvc.Domain.Orders.OrderCancellationReason;
-using EventCancellationReason = MyFoodDelivery.Shared.Events.OrderCancellationReason;
 
 namespace OrderingSvc.Application.Orders;
 
@@ -43,7 +42,11 @@ public class OrderAppService : ApplicationService, IOrderAppService
 
     public async Task<OrderDto> GetAsync(Guid id)
     {
-        var order = await _orderRepository.GetAsync(id);
+        var queryable = (await _orderRepository.GetQueryableAsync())
+            .Include(o => o.Items);
+        var order = queryable.FirstOrDefault(o => o.Id == id);
+        if (order == null)
+            throw new Volo.Abp.Domain.Entities.EntityNotFoundException(typeof(Order), id);
         EnsureOrderBelongsToCurrentUser(order);
         return ObjectMapper.Map<Order, OrderDto>(order);
     }
@@ -88,19 +91,19 @@ public class OrderAppService : ApplicationService, IOrderAppService
 
         var totalCount = queryable.Count();
 
-        queryable = queryable
+        var orders = queryable
+            .Include(o => o.Items)
             .OrderByDescending(o => o.CreationTime)
             .Skip(input.SkipCount)
-            .Take(input.MaxResultCount);
-
-        var orders = queryable.ToList();
+            .Take(input.MaxResultCount)
+            .ToList();
 
         return new PagedResultDto<OrderListDto>(
             totalCount,
             ObjectMapper.Map<List<Order>, List<OrderListDto>>(orders));
     }
 
-    [Authorize(OrderingSvcPermissions.Orders.Create)]
+    [Authorize]
     public async Task<OrderDto> CreateAsync(CreateOrderDto input)
     {
         var customerId = CurrentUser.Id ?? throw new BusinessException("Order:NotAuthenticated");
@@ -138,7 +141,10 @@ public class OrderAppService : ApplicationService, IOrderAppService
             input.Notes,
             cart.DeliveryFee,
             cart.ServiceFee,
-            30); // Default 30 min prep time
+            30, // Default 30 min prep time
+            (int)input.PaymentMethod,
+            Guid.TryParse(input.PaymentMethodId, out var pmId) ? pmId : (Guid?)null,
+            input.RestaurantName);
 
         // Add items from cart
         foreach (var item in cart.Items)
@@ -187,67 +193,113 @@ public class OrderAppService : ApplicationService, IOrderAppService
         return ObjectMapper.Map<Order, OrderDto>(order);
     }
 
-    [Authorize(OrderingSvcPermissions.Orders.Cancel)]
+    [Authorize]
     public async Task CancelAsync(Guid id, CancelOrderDto input)
     {
         var order = await _orderRepository.GetAsync(id);
         EnsureOrderBelongsToCurrentUser(order);
 
-        // Check if order can be cancelled (not delivered or completed)
-        if (order.Status == DomainOrderStatus.Delivered || 
-            order.Status == DomainOrderStatus.Completed ||
-            order.Status == DomainOrderStatus.Cancelled)
+        // Only allow cancellation while Pending or PaymentConfirmed
+        var cancellableStatuses = new[]
+        {
+            DomainOrderStatus.Pending,
+            DomainOrderStatus.PaymentConfirmed
+        };
+        if (!cancellableStatuses.Contains(order.Status))
         {
             throw new BusinessException("Order:CannotCancel")
                 .WithData("status", order.Status.ToString());
         }
 
-        order.Cancel(input.Reason ?? "Customer requested cancellation", DomainCancellationReason.CustomerRequested);
+        order.Cancel(input.Reason ?? "Customer requested cancellation", OrderCancellationReason.CustomerRequested);
         await _orderRepository.UpdateAsync(order);
 
         await _eventBus.PublishAsync(new OrderCancelledEto(
             order.Id,
             order.CustomerId,
             order.RiderId,
-            EventCancellationReason.CustomerRequested,
+            OrderCancellationReason.CustomerRequested,
             input.Reason,
             DateTime.UtcNow));
     }
 
     public async Task<OrderTrackingDto> GetTrackingAsync(Guid id)
     {
-        var order = await _orderRepository.GetAsync(id);
+        var queryable = (await _orderRepository.GetQueryableAsync())
+            .Include(o => o.Items);
+        var order = queryable.FirstOrDefault(o => o.Id == id);
+        if (order == null)
+            throw new Volo.Abp.Domain.Entities.EntityNotFoundException(typeof(Order), id);
         EnsureOrderBelongsToCurrentUser(order);
+
+        // Build status history from the order's lifecycle timestamps
+        var history = new List<OrderStatusHistoryDto>
+        {
+            new() { Status = DomainOrderStatus.Pending, Timestamp = order.CreationTime, Note = "Order placed" }
+        };
+        if (order.PaymentConfirmedAt.HasValue)
+            history.Add(new() { Status = DomainOrderStatus.PaymentConfirmed, Timestamp = order.PaymentConfirmedAt.Value, Note = "Payment confirmed" });
+        if (order.PreparationStartedAt.HasValue)
+            history.Add(new() { Status = DomainOrderStatus.Preparing, Timestamp = order.PreparationStartedAt.Value, Note = "Restaurant is preparing your order" });
+        if (order.ReadyForPickupAt.HasValue)
+            history.Add(new() { Status = DomainOrderStatus.ReadyForPickup, Timestamp = order.ReadyForPickupAt.Value, Note = "Ready for pickup" });
+        if (order.PickedUpAt.HasValue)
+            history.Add(new() { Status = DomainOrderStatus.InTransit, Timestamp = order.PickedUpAt.Value, Note = "Rider picked up your order" });
+        if (order.DeliveredAt.HasValue)
+            history.Add(new() { Status = DomainOrderStatus.Delivered, Timestamp = order.DeliveredAt.Value, Note = "Order delivered" });
 
         return new OrderTrackingDto
         {
             OrderId = order.Id,
             OrderNumber = order.OrderNumber,
-            Status = (ContractOrderStatus)(int)order.Status,
+            Status = order.Status,
             EstimatedDeliveryTime = order.EstimatedDeliveryTime,
             Restaurant = new RestaurantLocationDto
             {
                 Id = order.RestaurantId,
-                Name = "Restaurant", // Would fetch from restaurant service
-                Latitude = 0,
-                Longitude = 0
+                Name = null,
+                Latitude = null,
+                Longitude = null
             },
-            DeliveryAddress = ObjectMapper.Map<DeliveryAddress, DeliveryAddressDto>(order.DeliveryAddress),
-            Rider = order.RiderId.HasValue ? new RiderTrackingDto
-            {
-                Id = order.RiderId.Value,
-                Name = "Rider", // Would fetch from delivery service
-                Phone = ""
-            } : null,
-            StatusHistory = new List<OrderStatusHistoryDto>
-            {
-                new OrderStatusHistoryDto
-                {
-                    Status = ContractOrderStatus.Pending,
-                    Timestamp = order.CreationTime,
-                    Note = "Order created"
-                }
-            }
+            DeliveryAddress = BuildDeliveryAddressDto(order),
+            Rider = BuildRiderDto(order),
+            StatusHistory = history
+        };
+    }
+
+    private DeliveryAddressDto BuildDeliveryAddressDto(Order order)
+    {
+        var addr = order.DeliveryAddress;
+        var lat = addr?.Latitude ?? 0;
+        var lng = addr?.Longitude ?? 0;
+        return new DeliveryAddressDto
+        {
+            Street = addr?.Street ?? string.Empty,
+            BuildingNumber = addr?.BuildingNumber ?? string.Empty,
+            Floor = addr?.Floor,
+            Apartment = addr?.Apartment,
+            City = addr?.City ?? string.Empty,
+            District = null,
+            Landmark = null,
+            DeliveryInstructions = addr?.DeliveryInstructions,
+            Latitude = lat,
+            Longitude = lng
+        };
+    }
+
+    private RiderTrackingDto? BuildRiderDto(Order order)
+    {
+        if (!order.RiderId.HasValue)
+            return null;
+
+        return new RiderTrackingDto
+        {
+            Id = order.RiderId.Value,
+            Name = order.RiderName ?? "Rider",
+            Phone = order.RiderPhone,
+            CurrentLatitude = order.RiderLatitude,
+            CurrentLongitude = order.RiderLongitude,
+            EtaMinutes = order.EstimatedDeliveryMinutes
         };
     }
 

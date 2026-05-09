@@ -43,13 +43,7 @@ public class UserCreatedEventHandler : IDistributedEventHandler<UserCreatedEto>,
 
         try
         {
-            var command = new RegisterCustomerCommand(
-                eventData.UserId,
-                eventData.Email,
-                eventData.FirstName,
-                eventData.LastName,
-                eventData.PhoneNumber);
-
+            var command = new RegisterCustomerCommand(eventData.UserId);
             var customerId = await _mediator.Send(command);
 
             _logger.LogInformation(

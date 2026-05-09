@@ -4,8 +4,10 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RestaurantSvc.Application.Contracts.Restaurants.Dtos;
 using RestaurantSvc.Application.Restaurants.Commands;
 using RestaurantSvc.Application.Restaurants.Queries;
+using RestaurantSvc.HttpApi.Dtos;
 using Volo.Abp.AspNetCore.Mvc;
 using Volo.Abp.Users;
 

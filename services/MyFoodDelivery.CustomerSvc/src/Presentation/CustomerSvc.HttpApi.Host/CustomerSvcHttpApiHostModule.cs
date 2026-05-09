@@ -1,4 +1,5 @@
 using CustomerSvc.Application;
+using CustomerSvc.BackgroundJobs;
 using CustomerSvc.HttpApi;
 using CustomerSvc.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -17,6 +18,7 @@ namespace CustomerSvc.HttpApi.Host;
     typeof(CustomerSvcHttpApiModule),
     typeof(CustomerSvcApplicationModule),
     typeof(CustomerSvcInfrastructureModule),
+    typeof(CustomerSvcBackgroundJobsModule),
     typeof(AbpAutofacModule),
     typeof(AbpAspNetCoreSerilogModule),
     typeof(AbpSwashbuckleModule)
@@ -49,15 +51,30 @@ public class CustomerSvcHttpApiHostModule : AbpModule
         })
         .AddJwtBearer(options =>
         {
+            options.MapInboundClaims = false;
             options.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuer = false,
                 ValidateAudience = false,
                 ValidateLifetime = false,
                 ValidateIssuerSigningKey = false,
-                // For development only - in production use proper key management
-                IssuerSigningKey = new SymmetricSecurityKey(
-                    Encoding.UTF8.GetBytes(configuration["Jwt:SecretKey"] ?? "MyFoodDeliveryDevSecretKey12345678901234567890"))
+                RequireSignedTokens = false,
+                SignatureValidator = (token, _) =>
+                {
+                    var handler = new Microsoft.IdentityModel.JsonWebTokens.JsonWebTokenHandler();
+                    return handler.ReadJsonWebToken(token);
+                }
+            };
+            options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+            {
+                OnTokenValidated = ctx =>
+                {
+                    var identity = ctx.Principal?.Identity as System.Security.Claims.ClaimsIdentity;
+                    var sub = identity?.FindFirst("sub")?.Value;
+                    if (sub != null && identity?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier) == null)
+                        identity?.AddClaim(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, sub));
+                    return System.Threading.Tasks.Task.CompletedTask;
+                }
             };
         });
     }

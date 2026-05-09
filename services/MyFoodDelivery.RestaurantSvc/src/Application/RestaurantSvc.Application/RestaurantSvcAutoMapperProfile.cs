@@ -1,5 +1,6 @@
 using AutoMapper;
 using RestaurantSvc.Application.Contracts.Restaurants;
+using RestaurantSvc.Application.Contracts.Restaurants.Dtos;
 using RestaurantSvc.Domain.Restaurants;
 
 namespace RestaurantSvc.Application;
@@ -14,53 +15,43 @@ public class RestaurantSvcAutoMapperProfile : Profile
         // Restaurant mappings
         CreateMap<Restaurant, RestaurantDto>()
             .ForMember(dest => dest.OpeningHours, opt => opt.MapFrom(src =>
-                src.OpeningHours.Select(h => new OpeningHoursDto
-                {
-                    Day = h.Day,
-                    OpenTime = h.OpenTime,
-                    CloseTime = h.CloseTime,
-                    IsClosed = h.IsClosed
-                }).ToList()))
+                src.OpeningHours.Select(h => new OpeningHoursDto(
+                    h.Day,
+                    h.OpenTime,
+                    h.CloseTime,
+                    h.IsClosed)).ToList()))
             .ForMember(dest => dest.Categories, opt => opt.MapFrom(src =>
-                src.Categories.Where(c => c.IsActive).Select(c => new MenuCategoryDto
-                {
-                    Id = c.Id,
-                    Name = c.Name,
-                    Description = c.Description,
-                    DisplayOrder = c.DisplayOrder,
-                    Items = src.MenuItems
+                src.Categories.Where(c => c.IsActive).Select(c => new MenuCategoryDto(
+                    c.Id,
+                    c.Name,
+                    c.Description,
+                    c.DisplayOrder,
+                    src.MenuItems
                         .Where(m => m.CategoryId == c.Id && m.IsActive)
-                        .Select(m => new MenuItemDto
-                        {
-                            Id = m.Id,
-                            CategoryId = m.CategoryId,
-                            Name = m.Name,
-                            Description = m.Description,
-                            Price = m.Price,
-                            DiscountedPrice = m.DiscountedPrice,
-                            ImageUrl = m.ImageUrl,
-                            PreparationTimeMinutes = m.PreparationTimeMinutes,
-                            IsVegetarian = m.IsVegetarian,
-                            IsVegan = m.IsVegan,
-                            IsGlutenFree = m.IsGlutenFree,
-                            IsSpicy = m.IsSpicy,
-                            Allergens = m.Allergens,
-                            IsAvailable = m.IsAvailable,
-                            IsFeatured = m.IsFeatured
-                        }).ToList()
-                }).ToList()));
+                        .Select(m => new MenuItemDto(
+                            m.Id,
+                            m.CategoryId,
+                            m.Name,
+                            m.Description,
+                            m.Price,
+                            m.DiscountedPrice,
+                            m.ImageUrl,
+                            m.PreparationTimeMinutes,
+                            m.IsVegetarian,
+                            m.IsVegan,
+                            m.IsGlutenFree,
+                            m.IsSpicy,
+                            m.Allergens,
+                            m.IsAvailable,
+                            m.IsFeatured)).ToList()
+                )).ToList()));
 
-        CreateMap<Restaurant, RestaurantListDto>();
-
-        CreateMap<Restaurant, NearbyRestaurantDto>();
-
+        // Note: RestaurantListDto, NearbyRestaurantDto and MenuItem/Category records use
+        // manual mapping in RestaurantAppService (records with positional constructors).
         CreateMap<RestaurantAddress, RestaurantAddressDto>()
-            .ForMember(dest => dest.FullAddress, opt => opt.MapFrom(src => src.GetFullAddress()));
-
-        // Menu item mappings
-        CreateMap<MenuItem, MenuItemDto>();
-
-        CreateMap<MenuCategory, MenuCategoryDto>()
-            .ForMember(dest => dest.Items, opt => opt.Ignore());
+            .ConstructUsing(src => new RestaurantAddressDto(
+                src.Street, src.BuildingNumber, src.City, src.District,
+                src.PostalCode, src.Country, src.Latitude, src.Longitude,
+                src.GetFullAddress()));
     }
 }

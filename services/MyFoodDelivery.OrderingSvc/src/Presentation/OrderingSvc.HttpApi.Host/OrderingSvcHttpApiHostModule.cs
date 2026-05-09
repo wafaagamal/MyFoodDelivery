@@ -46,6 +46,7 @@ public class OrderingSvcHttpApiHostModule : AbpModule
         })
         .AddJwtBearer(options =>
         {
+            options.MapInboundClaims = false;
             options.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuer = false,
@@ -59,6 +60,17 @@ public class OrderingSvcHttpApiHostModule : AbpModule
                     var handler = new Microsoft.IdentityModel.JsonWebTokens.JsonWebTokenHandler();
                     var jwt = handler.ReadJsonWebToken(token);
                     return jwt;
+                }
+            };
+            options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+            {
+                OnTokenValidated = ctx =>
+                {
+                    var identity = ctx.Principal?.Identity as System.Security.Claims.ClaimsIdentity;
+                    var sub = identity?.FindFirst("sub")?.Value;
+                    if (sub != null && identity?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier) == null)
+                        identity?.AddClaim(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, sub));
+                    return System.Threading.Tasks.Task.CompletedTask;
                 }
             };
         });

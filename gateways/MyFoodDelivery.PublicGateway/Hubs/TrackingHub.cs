@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
+using MyFoodDelivery.PublicGateway.Hubs.Dtos;
 
 namespace MyFoodDelivery.PublicGateway.Hubs;
 
@@ -195,14 +196,3 @@ public class TrackingHub : Hub
         return userId;
     }
 }
-
-/// <summary>
-/// DTO for rider location updates.
-/// </summary>
-public record RiderLocationUpdate(
-    double Latitude,
-    double Longitude,
-    double? Heading,
-    double? Speed,
-    Guid? CurrentOrderId,
-    int? EstimatedArrivalMinutes);

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading.Tasks;
-using OrderingSvc.Application.Services;
+using OrderingSvc.Domain.Services;
 using StackExchange.Redis;
 
 namespace OrderingSvc.Infrastructure.Services;

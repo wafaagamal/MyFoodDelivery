@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
-using OrderingSvc.Application.Services;
+using OrderingSvc.Domain.Services;
 using Stripe;
 
 namespace OrderingSvc.Infrastructure.Services;
@@ -221,11 +221,4 @@ public class StripePaymentGateway : IPaymentGateway
             return "fraudulent";
         return "requested_by_customer";
     }
-}
-
-public class StripeSettings
-{
-    public string SecretKey { get; set; } = default!;
-    public string PublishableKey { get; set; } = default!;
-    public string WebhookSecret { get; set; } = default!;
 }

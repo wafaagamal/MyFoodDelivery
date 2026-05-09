@@ -11,4 +11,8 @@
     <PackageReference Include="Volo.Abp.Ddd.Domain" Version="8.2.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\RestaurantSvc.Domain.Shared\RestaurantSvc.Domain.Shared.csproj" />
+  </ItemGroup>
+
 </Project>

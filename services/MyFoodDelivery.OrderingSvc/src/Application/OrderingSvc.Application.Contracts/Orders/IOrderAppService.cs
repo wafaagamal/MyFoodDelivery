@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
+using OrderingSvc.Application.Contracts.Orders.Dtos;
 
 namespace OrderingSvc.Application.Contracts.Orders;
 

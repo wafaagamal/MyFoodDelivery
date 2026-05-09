@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using CustomerSvc.Application.Customers.Commands;
 using CustomerSvc.Application.Customers.Queries;
+using CustomerSvc.Application.Contracts.Customers.Dtos;
+using CustomerSvc.HttpApi.Dtos;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -57,19 +59,13 @@ public class CustomerController : AbpController
 
     /// <summary>
     /// Updates the current customer's profile.
+    /// Name/email updates should go to AuthSvc. This endpoint handles phone number and profile image.
     /// </summary>
     [HttpPut("me")]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
     {
         var customerId = GetCurrentUserId();
-        
-        await _mediator.Send(new UpdateCustomerProfileCommand(
-            customerId,
-            request.FirstName,
-            request.LastName,
-            request.PhoneNumber,
-            request.ProfileImageUrl));
-
+        await _mediator.Send(new UpdateCustomerProfileCommand(customerId, request.PhoneNumber, request.ProfileImageUrl));
         return NoContent();
     }
 
@@ -78,7 +74,7 @@ public class CustomerController : AbpController
     /// </summary>
     [HttpGet]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<PagedResultDto<CustomerListItemDto>>> Search(
+    public async Task<ActionResult<CustomerPagedResultDto<CustomerListItemDto>>> Search(
         [FromQuery] string? searchTerm,
         [FromQuery] string? loyaltyTier,
         [FromQuery] bool? isActive,
@@ -227,42 +223,3 @@ public class CustomerAddressController : AbpController
         return userId;
     }
 }
-
-#region Request DTOs
-
-public record UpdateProfileRequest(
-    string FirstName,
-    string LastName,
-    string? PhoneNumber,
-    string? ProfileImageUrl);
-
-public record AddAddressRequest(
-    string Label,
-    string Street,
-    string BuildingNumber,
-    string? Floor,
-    string? Apartment,
-    string City,
-    string? District,
-    string PostalCode,
-    string Country,
-    double? Latitude,
-    double? Longitude,
-    string? DeliveryInstructions,
-    bool IsDefault = false);
-
-public record UpdateAddressRequest(
-    string Label,
-    string Street,
-    string BuildingNumber,
-    string? Floor,
-    string? Apartment,
-    string City,
-    string? District,
-    string PostalCode,
-    string Country,
-    double? Latitude,
-    double? Longitude,
-    string? DeliveryInstructions);
-
-#endregion

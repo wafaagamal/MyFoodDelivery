@@ -3,7 +3,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using OrderingSvc.Application.Contracts.Carts;
-using OrderingSvc.Application.Services;
+using OrderingSvc.Application.Contracts.Carts.Dtos;
+using OrderingSvc.Domain.Services;
 using Volo.Abp.Application.Services;
 
 namespace OrderingSvc.Application.Carts;
@@ -41,8 +42,9 @@ public class CartAppService : ApplicationService, ICartAppService
         var cartItem = new CartItem
         {
             MenuItemId = input.MenuItemId,
-            Name = "Menu Item", // TODO: Fetch from restaurant service
-            UnitPrice = 0, // TODO: Fetch from restaurant service
+            Name = input.MenuItemName ?? "Menu Item",
+            ImageUrl = input.MenuItemImageUrl,
+            UnitPrice = input.UnitPrice,
             Quantity = input.Quantity,
             SpecialInstructions = input.SpecialInstructions,
             SelectedOptions = new()

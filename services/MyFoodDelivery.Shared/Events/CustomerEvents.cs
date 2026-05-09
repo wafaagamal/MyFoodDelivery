@@ -4,14 +4,10 @@ namespace MyFoodDelivery.Shared.Events;
 
 /// <summary>
 /// Published when a new customer registers in the system.
-/// Consumed by CustomerSvc to create the Customer aggregate.
+/// Identity data (name/email) is already in UserCreatedEto from AuthSvc.
 /// </summary>
 public record CustomerRegisteredEto(
-    Guid CustomerId,
-    string Email,
-    string FirstName,
-    string LastName,
-    string? PhoneNumber = null);
+    Guid CustomerId);
 
 /// <summary>
 /// Published when a customer adds a new delivery address.
@@ -37,13 +33,10 @@ public record LoyaltyPointsUpdatedEto(
     LoyaltyPointsChangeReason Reason);
 
 /// <summary>
-/// Published when a customer updates their profile.
+/// Published when a customer updates their profile in AuthSvc.
 /// </summary>
 public record CustomerProfileUpdatedEto(
-    Guid CustomerId,
-    string FirstName,
-    string LastName,
-    string? PhoneNumber);
+    Guid CustomerId);
 
 /// <summary>
 /// Published when a customer deactivates their account.

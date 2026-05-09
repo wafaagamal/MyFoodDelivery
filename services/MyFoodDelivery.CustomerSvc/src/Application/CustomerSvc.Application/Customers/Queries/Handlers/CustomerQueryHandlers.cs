@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using CustomerSvc.Application.Customers.Queries;
+using CustomerSvc.Application.Contracts.Customers.Dtos;
 using CustomerSvc.Domain.Customers;
 using CustomerSvc.Domain.Customers.Events;
 using MediatR;
@@ -35,52 +37,14 @@ public class GetCustomerProfileQueryHandler : IRequestHandler<GetCustomerProfile
     {
         return new CustomerProfileDto(
             customer.Id,
-            customer.FirstName,
-            customer.LastName,
-            customer.Email.Value,
-            customer.Phone?.Value,
-            customer.ProfileImageUrl,
             customer.LoyaltyPoints,
             customer.LoyaltyTier.ToString(),
             customer.IsActive,
             customer.CreationTime,
             customer.LastOrderDate,
-            customer.TotalOrders);
-    }
-}
-
-/// <summary>
-/// Handler for GetCustomerByEmailQuery.
-/// </summary>
-public class GetCustomerByEmailQueryHandler : IRequestHandler<GetCustomerByEmailQuery, CustomerProfileDto?>
-{
-    private readonly ICustomerRepository _customerRepository;
-
-    public GetCustomerByEmailQueryHandler(ICustomerRepository customerRepository)
-    {
-        _customerRepository = customerRepository;
-    }
-
-    public async Task<CustomerProfileDto?> Handle(GetCustomerByEmailQuery request, CancellationToken cancellationToken)
-    {
-        var customer = await _customerRepository.FindByEmailAsync(request.Email, cancellationToken);
-        
-        if (customer == null)
-            return null;
-
-        return new CustomerProfileDto(
-            customer.Id,
-            customer.FirstName,
-            customer.LastName,
-            customer.Email.Value,
-            customer.Phone?.Value,
-            customer.ProfileImageUrl,
-            customer.LoyaltyPoints,
-            customer.LoyaltyTier.ToString(),
-            customer.IsActive,
-            customer.CreationTime,
-            customer.LastOrderDate,
-            customer.TotalOrders);
+            customer.TotalOrders,
+            customer.PhoneNumber,
+            customer.ProfileImageUrl);
     }
 }
 
@@ -254,7 +218,7 @@ public class GetLoyaltyInfoQueryHandler : IRequestHandler<GetLoyaltyInfoQuery, L
 /// <summary>
 /// Handler for SearchCustomersQuery.
 /// </summary>
-public class SearchCustomersQueryHandler : IRequestHandler<SearchCustomersQuery, PagedResultDto<CustomerListItemDto>>
+public class SearchCustomersQueryHandler : IRequestHandler<SearchCustomersQuery, CustomerPagedResultDto<CustomerListItemDto>>
 {
     private readonly ICustomerRepository _customerRepository;
 
@@ -263,20 +227,27 @@ public class SearchCustomersQueryHandler : IRequestHandler<SearchCustomersQuery,
         _customerRepository = customerRepository;
     }
 
-    public async Task<PagedResultDto<CustomerListItemDto>> Handle(SearchCustomersQuery request, CancellationToken cancellationToken)
+    public async Task<CustomerPagedResultDto<CustomerListItemDto>> Handle(SearchCustomersQuery request, CancellationToken cancellationToken)
     {
-        // For a production system, this would use a read-optimized query or a separate read model
-        var customers = await _customerRepository.SearchAsync(
-            request.SearchTerm ?? "",
-            request.SkipCount,
-            request.MaxResultCount,
-            cancellationToken);
+        var dbContext = await GetSearchableContextAsync(request);
+        _ = dbContext; // placeholder — query by loyalty tier/active status only (no name/email)
+
+        // Search by Id range is no longer meaningful without name/email;
+        // return all matching by IsActive filter using repository
+        var tier = request.LoyaltyTier != null
+            ? Enum.TryParse<LoyaltyTier>(request.LoyaltyTier, out var t) ? t : (LoyaltyTier?)null
+            : null;
+
+        List<Customer> customers;
+        if (tier.HasValue)
+            customers = await _customerRepository.GetByLoyaltyTierAsync(tier.Value, request.SkipCount, request.MaxResultCount, cancellationToken);
+        else
+            customers = await _customerRepository.GetListAsync(cancellationToken: cancellationToken);
 
         var items = customers
+            .Where(c => !request.IsActive.HasValue || c.IsActive == request.IsActive.Value)
             .Select(c => new CustomerListItemDto(
                 c.Id,
-                c.GetFullName(),
-                c.Email.Value,
                 c.LoyaltyTier.ToString(),
                 c.LoyaltyPoints,
                 c.IsActive,
@@ -284,7 +255,8 @@ public class SearchCustomersQueryHandler : IRequestHandler<SearchCustomersQuery,
                 c.TotalOrders))
             .ToList();
 
-        // Note: In production, you'd want a separate count query
-        return new PagedResultDto<CustomerListItemDto>(items, items.Count);
+        return new CustomerPagedResultDto<CustomerListItemDto>(items, items.Count);
     }
+
+    private Task<object?> GetSearchableContextAsync(SearchCustomersQuery _) => Task.FromResult<object?>(null);
 }

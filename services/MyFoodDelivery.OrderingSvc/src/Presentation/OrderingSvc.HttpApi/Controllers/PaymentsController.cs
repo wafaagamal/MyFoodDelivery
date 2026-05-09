@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OrderingSvc.Application.Contracts.Payments;
+using OrderingSvc.Application.Contracts.Payments.Dtos;
 using Volo.Abp;
 using Volo.Abp.AspNetCore.Mvc;
 

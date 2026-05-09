@@ -1,4 +1,5 @@
 using DeliverySvc.Application.Contracts.Riders;
+using DeliverySvc.Application.Contracts.Riders.Dtos;
 using DeliverySvc.Application.Riders;
 using DeliverySvc.Domain.Riders;
 using Microsoft.AspNetCore.Authorization;
@@ -42,16 +43,16 @@ public class RiderController : AbpController
 
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<RiderDto>> CreateAsync([FromBody] CreateRiderDto input)
+    public async Task<ActionResult<RiderDto>> CreateAsync([FromQuery] Guid userId)
     {
-        var result = await _riderAppService.CreateAsync(input);
+        var result = await _riderAppService.CreateAsync(userId);
         return CreatedAtAction(nameof(GetAsync), new { id = result.Id }, result);
     }
 
-    [HttpPut("{id:guid}")]
-    public async Task<ActionResult<RiderDto>> UpdateAsync(Guid id, [FromBody] UpdateRiderDto input)
+    [HttpPut("{id:guid}/vehicle")]
+    public async Task<ActionResult<RiderDto>> UpdateVehicleAsync(Guid id, [FromBody] UpdateRiderVehicleDto input)
     {
-        var result = await _riderAppService.UpdateAsync(id, input);
+        var result = await _riderAppService.UpdateVehicleAsync(id, input);
         return Ok(result);
     }
 

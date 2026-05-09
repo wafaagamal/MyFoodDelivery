@@ -7,6 +7,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using OrderingSvc.Application.Orders.Queries;
 using OrderingSvc.Domain.Orders;
+using OrderingSvc.Domain.Services;
 
 namespace OrderingSvc.Application.Orders.Handlers;
 
@@ -18,11 +19,11 @@ public class OrderQueryHandlers :
     IRequestHandler<GetOrderTrackingQuery, OrderTrackingDto?>
 {
     private readonly IOrderRepository _orderRepository;
-    private readonly Application.Services.ICartService _cartService;
+    private readonly ICartService _cartService;
 
     public OrderQueryHandlers(
         IOrderRepository orderRepository,
-        Application.Services.ICartService cartService)
+        ICartService cartService)
     {
         _orderRepository = orderRepository;
         _cartService = cartService;
@@ -231,7 +232,7 @@ public class OrderQueryHandlers :
         return new OrderListDto(
             order.Id,
             order.OrderNumber,
-            "", // Restaurant name from RestaurantSvc
+            order.RestaurantName ?? "Restaurant",
             null, // Restaurant logo
             order.Status.ToString(),
             order.TotalAmount,

@@ -144,6 +144,9 @@ namespace DeliverySvc.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<double>("AverageRating")
+                        .HasColumnType("float");
+
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
                         .IsRequired()
@@ -167,19 +170,10 @@ namespace DeliverySvc.Infrastructure.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("DeletionTime");
 
-                    b.Property<string>("Email")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
                     b.Property<string>("ExtraProperties")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("ExtraProperties");
-
-                    b.Property<string>("FirstName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
@@ -190,14 +184,11 @@ namespace DeliverySvc.Infrastructure.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("IsDeleted");
 
-                    b.Property<double?>("LastLatitude")
-                        .HasColumnType("float");
+                    b.Property<bool>("IsOnline")
+                        .HasColumnType("bit");
 
                     b.Property<DateTime?>("LastLocationUpdate")
                         .HasColumnType("datetime2");
-
-                    b.Property<double?>("LastLongitude")
-                        .HasColumnType("float");
 
                     b.Property<DateTime?>("LastModificationTime")
                         .HasColumnType("datetime2")
@@ -207,19 +198,22 @@ namespace DeliverySvc.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("LastModifierId");
 
-                    b.Property<string>("LastName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                    b.Property<DateTime?>("LastOfflineAt")
+                        .HasColumnType("datetime2");
 
-                    b.Property<string>("PhoneNumber")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                    b.Property<DateTime?>("LastOnlineAt")
+                        .HasColumnType("datetime2");
 
-                    b.Property<double>("Rating")
-                        .HasPrecision(3, 2)
-                        .HasColumnType("float(3)");
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("float")
+                        .HasColumnName("Latitude");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("float")
+                        .HasColumnName("Longitude");
+
+                    b.Property<int>("RatingCount")
+                        .HasColumnType("int");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -228,6 +222,9 @@ namespace DeliverySvc.Infrastructure.Migrations
 
                     b.Property<int>("TotalDeliveries")
                         .HasColumnType("int");
+
+                    b.Property<decimal>("TotalEarnings")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("VehiclePlate")
                         .HasMaxLength(20)
@@ -239,8 +236,7 @@ namespace DeliverySvc.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PhoneNumber")
-                        .IsUnique();
+                    b.HasIndex("IsOnline");
 
                     b.HasIndex("Status");
 
