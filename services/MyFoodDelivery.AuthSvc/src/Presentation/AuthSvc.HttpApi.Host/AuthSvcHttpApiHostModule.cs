@@ -1,12 +1,14 @@
 using AuthSvc.HttpApi;
 using AuthSvc.HttpApi.Host.DataSeeders;
 using AuthSvc.Infrastructure;
+using Microsoft.AspNetCore.Identity;
 using OpenIddict.Server;
 using Volo.Abp;
 using Volo.Abp.Account;
 using Volo.Abp.AspNetCore.Mvc;
 using Volo.Abp.AspNetCore.Serilog;
 using Volo.Abp.Autofac;
+using Volo.Abp.Domain.Entities.Events.Distributed;
 using Volo.Abp.EventBus.RabbitMq;
 using Volo.Abp.Modularity;
 using Volo.Abp.OpenIddict;
@@ -29,6 +31,13 @@ public class AuthSvcHttpApiHostModule : AbpModule
 {
     public override void PreConfigureServices(ServiceConfigurationContext context)
     {
+        // Register ASP.NET Core default token providers so that
+        // GeneratePasswordResetTokenAsync / ResetPasswordAsync work correctly.
+        PreConfigure<IdentityBuilder>(builder =>
+        {
+            builder.AddDefaultTokenProviders();
+        });
+
         PreConfigure<OpenIddictServerBuilder>(builder =>
         {
             builder.SetTokenEndpointUris("/connect/token");
@@ -59,6 +68,13 @@ public class AuthSvcHttpApiHostModule : AbpModule
         ConfigureCors(context.Services, configuration);
 
         context.Services.AddTransient<AuthDataSeeder>();
+
+        // Suppress automatic distributed entity events (IdentityUser, etc.)
+        // so that the UnitOfWork does not fail when RabbitMQ is unavailable.
+        Configure<AbpDistributedEntityEventOptions>(options =>
+        {
+            options.AutoEventSelectors.Clear();
+        });
     }
 
     private static void ConfigureSwagger(IServiceCollection services)
