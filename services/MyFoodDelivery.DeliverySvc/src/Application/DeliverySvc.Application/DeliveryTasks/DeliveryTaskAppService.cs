@@ -55,6 +55,43 @@ public class DeliveryTaskAppService : ApplicationService, IDeliveryTaskAppServic
         return ObjectMapper.Map<DeliveryTask, DeliveryTaskDto>(task);
     }
 
+    public async Task<List<DeliveryTaskDto>> GetAvailableAsync()
+    {
+        var query = await _taskRepository.GetQueryableAsync();
+        var tasks = await query
+            .Where(t => t.Status == DeliveryTaskStatus.Pending)
+            .OrderBy(t => t.CreationTime)
+            .ToListAsync();
+        return tasks.Select(t => ObjectMapper.Map<DeliveryTask, DeliveryTaskDto>(t)).ToList();
+    }
+
+    public async Task<DeliveryTaskDto?> GetActiveForRiderAsync(Guid riderId)
+    {
+        var query = await _taskRepository.GetQueryableAsync();
+        var task = await query.FirstOrDefaultAsync(t =>
+            t.RiderId == riderId &&
+            (t.Status == DeliveryTaskStatus.Assigned || t.Status == DeliveryTaskStatus.PickedUp));
+        if (task == null) return null;
+        return ObjectMapper.Map<DeliveryTask, DeliveryTaskDto>(task);
+    }
+
+    public async Task<DeliveryTaskDto> AcceptAsync(Guid taskId, Guid riderId)
+    {
+        return await AssignRiderAsync(taskId, new AssignRiderDto { RiderId = riderId });
+    }
+
+    public async Task<List<DeliveryTaskDto>> GetMyTasksAsync(Guid riderId, int skip, int take)
+    {
+        var query = await _taskRepository.GetQueryableAsync();
+        var tasks = await query
+            .Where(t => t.RiderId == riderId)
+            .OrderByDescending(t => t.CreationTime)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync();
+        return tasks.Select(t => ObjectMapper.Map<DeliveryTask, DeliveryTaskDto>(t)).ToList();
+    }
+
     public async Task<DeliveryTaskDto> AssignRiderAsync(Guid taskId, AssignRiderDto input)
     {
         var task = await _taskRepository.GetAsync(taskId);
