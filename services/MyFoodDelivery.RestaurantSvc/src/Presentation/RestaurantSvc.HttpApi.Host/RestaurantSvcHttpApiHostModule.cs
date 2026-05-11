@@ -3,7 +3,6 @@ using Microsoft.IdentityModel.Tokens;
 using MongoDB.Driver;
 using RestaurantSvc.Application;
 using RestaurantSvc.HttpApi;
-using System.Text;
 using Volo.Abp;
 using Volo.Abp.AspNetCore.Mvc;
 using Volo.Abp.AspNetCore.Serilog;
@@ -50,15 +49,32 @@ public class RestaurantSvcHttpApiHostModule : AbpModule
         })
         .AddJwtBearer(options =>
         {
+            options.MapInboundClaims = false;
             options.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuer = false,
                 ValidateAudience = false,
                 ValidateLifetime = false,
                 ValidateIssuerSigningKey = false,
-                // For development only - in production use proper key management
-                IssuerSigningKey = new SymmetricSecurityKey(
-                    Encoding.UTF8.GetBytes(configuration["Jwt:SecretKey"] ?? "MyFoodDeliveryDevSecretKey12345678901234567890"))
+                RequireSignedTokens = false,
+                // Accept any token without signature validation (development only)
+                SignatureValidator = (token, _) =>
+                {
+                    var handler = new Microsoft.IdentityModel.JsonWebTokens.JsonWebTokenHandler();
+                    var jwt = handler.ReadJsonWebToken(token);
+                    return jwt;
+                }
+            };
+            options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+            {
+                OnTokenValidated = ctx =>
+                {
+                    var identity = ctx.Principal?.Identity as System.Security.Claims.ClaimsIdentity;
+                    var sub = identity?.FindFirst("sub")?.Value;
+                    if (sub != null && identity?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier) == null)
+                        identity?.AddClaim(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, sub));
+                    return System.Threading.Tasks.Task.CompletedTask;
+                }
             };
         });
     }

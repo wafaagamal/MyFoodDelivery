@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -181,6 +182,19 @@ public class RestaurantController : AbpController
     public async Task<IActionResult> PauseOrders(Guid id, [FromBody] PauseOrdersRequest request)
     {
         await _mediator.Send(new PauseOrdersCommand(id, request.Reason));
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/opening-hours")]
+    [Authorize]
+    public async Task<IActionResult> SetOpeningHours(Guid id, [FromBody] SetOpeningHoursRequest request)
+    {
+        var hours = request.Hours.Select(h => new RestaurantSvc.Application.Restaurants.Commands.OpeningHoursDto(
+            (DayOfWeek)h.Day,
+            TimeSpan.Parse(h.OpenTime),
+            TimeSpan.Parse(h.CloseTime),
+            h.IsClosed)).ToList();
+        await _mediator.Send(new SetOpeningHoursCommand(id, hours));
         return NoContent();
     }
 

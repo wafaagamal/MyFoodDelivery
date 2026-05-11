@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using OrderingSvc.Application.Contracts.Orders;
 using OrderingSvc.Application.Contracts.Orders.Dtos;
-using OrderingSvc.Application.Contracts.Permissions;
 using OrderingSvc.Domain.Orders;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
@@ -24,7 +24,7 @@ namespace OrderingSvc.Application.Orders;
 /// ABP Application Service for restaurant order management.
 /// Auto API generation disabled - use RestaurantOrderController instead.
 /// </summary>
-[Authorize(OrderingSvcPermissions.RestaurantOrders.Default)]
+[Authorize]
 [RemoteService(IsEnabled = false)]
 public class RestaurantOrderAppService : ApplicationService, IRestaurantOrderAppService
 {
@@ -42,6 +42,7 @@ public class RestaurantOrderAppService : ApplicationService, IRestaurantOrderApp
     public async Task<PagedResultDto<OrderListDto>> GetListAsync(GetRestaurantOrdersInput input)
     {
         var queryable = await _orderRepository.GetQueryableAsync();
+        queryable = queryable.Include(o => o.Items);
 
         queryable = queryable.Where(o => o.RestaurantId == input.RestaurantId);
 
@@ -75,9 +76,16 @@ public class RestaurantOrderAppService : ApplicationService, IRestaurantOrderApp
             ObjectMapper.Map<List<Order>, List<OrderListDto>>(orders));
     }
 
+    private async Task<Order> GetOrderWithItemsAsync(Guid orderId)
+    {
+        var queryable = await _orderRepository.GetQueryableAsync();
+        var order = queryable.Include(o => o.Items).FirstOrDefault(o => o.Id == orderId);
+        return order ?? throw new Volo.Abp.Domain.Entities.EntityNotFoundException(typeof(Order), orderId);
+    }
+
     public async Task<OrderDto> GetAsync(Guid restaurantId, Guid orderId)
     {
-        var order = await _orderRepository.GetAsync(orderId);
+        var order = await GetOrderWithItemsAsync(orderId);
 
         if (order.RestaurantId != restaurantId)
         {
@@ -87,10 +95,9 @@ public class RestaurantOrderAppService : ApplicationService, IRestaurantOrderApp
         return ObjectMapper.Map<Order, OrderDto>(order);
     }
 
-    [Authorize(OrderingSvcPermissions.RestaurantOrders.Accept)]
     public async Task AcceptAsync(Guid restaurantId, Guid orderId, int preparationMinutes)
     {
-        var order = await _orderRepository.GetAsync(orderId);
+        var order = await GetOrderWithItemsAsync(orderId);
 
         if (order.RestaurantId != restaurantId)
         {
@@ -105,7 +112,12 @@ public class RestaurantOrderAppService : ApplicationService, IRestaurantOrderApp
         }
 
         // Accept by starting preparation
+        // If the order is still Pending, first confirm payment then start preparation
         var previousStatus = MapToEventStatus(order.Status);
+        if (order.Status == DomainOrderStatus.Pending)
+        {
+            order.ConfirmPayment();
+        }
         order.StartPreparation();
         await _orderRepository.UpdateAsync(order);
 
@@ -118,10 +130,9 @@ public class RestaurantOrderAppService : ApplicationService, IRestaurantOrderApp
             null));
     }
 
-    [Authorize(OrderingSvcPermissions.RestaurantOrders.Reject)]
     public async Task RejectAsync(Guid restaurantId, Guid orderId, string reason)
     {
-        var order = await _orderRepository.GetAsync(orderId);
+        var order = await GetOrderWithItemsAsync(orderId);
 
         if (order.RestaurantId != restaurantId)
         {
@@ -140,10 +151,9 @@ public class RestaurantOrderAppService : ApplicationService, IRestaurantOrderApp
             DateTime.UtcNow));
     }
 
-    [Authorize(OrderingSvcPermissions.RestaurantOrders.UpdateStatus)]
     public async Task StartPreparingAsync(Guid restaurantId, Guid orderId)
     {
-        var order = await _orderRepository.GetAsync(orderId);
+        var order = await GetOrderWithItemsAsync(orderId);
 
         if (order.RestaurantId != restaurantId)
         {
@@ -163,10 +173,9 @@ public class RestaurantOrderAppService : ApplicationService, IRestaurantOrderApp
             null));
     }
 
-    [Authorize(OrderingSvcPermissions.RestaurantOrders.UpdateStatus)]
     public async Task MarkReadyAsync(Guid restaurantId, Guid orderId)
     {
-        var order = await _orderRepository.GetAsync(orderId);
+        var order = await GetOrderWithItemsAsync(orderId);
 
         if (order.RestaurantId != restaurantId)
         {

@@ -21,6 +21,8 @@ public class RestaurantCommandHandlers :
     IRequestHandler<AddMenuItemCommand, Guid>,
     IRequestHandler<UpdateMenuItemCommand>,
     IRequestHandler<SetMenuItemAvailabilityCommand>,
+    IRequestHandler<RemoveMenuItemCommand>,
+    IRequestHandler<SetOpeningHoursCommand>,
     IRequestHandler<ConfirmOrderCommand>,
     IRequestHandler<RejectOrderCommand>,
     IRequestHandler<StartPreparingOrderCommand>,
@@ -215,5 +217,22 @@ public class RestaurantCommandHandlers :
             request.OrderId,
             request.RestaurantId,
             DateTime.UtcNow));
+    }
+
+    public async Task Handle(RemoveMenuItemCommand request, CancellationToken cancellationToken)
+    {
+        var restaurant = await _repository.GetAsync(request.RestaurantId, cancellationToken: cancellationToken);
+        restaurant.RemoveMenuItem(request.MenuItemId);
+        await _repository.UpdateAsync(restaurant, cancellationToken: cancellationToken);
+    }
+
+    public async Task Handle(SetOpeningHoursCommand request, CancellationToken cancellationToken)
+    {
+        var restaurant = await _repository.GetAsync(request.RestaurantId, cancellationToken: cancellationToken);
+        foreach (var hours in request.Hours)
+        {
+            restaurant.SetOpeningHours(hours.Day, hours.OpenTime, hours.CloseTime, hours.IsClosed);
+        }
+        await _repository.UpdateAsync(restaurant, cancellationToken: cancellationToken);
     }
 }
