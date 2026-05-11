@@ -146,6 +146,20 @@ public class RiderController : AbpController
         return Ok(Array.Empty<object>());
     }
 
+    [HttpPut("{id:guid}")]
+    public IActionResult UpdateProfileAsync(Guid id, [FromBody] object input)
+    {
+        // Stub — profile updates not yet persisted
+        return NoContent();
+    }
+
+    [HttpPut("{id:guid}/settings")]
+    public IActionResult UpdateSettingsAsync(Guid id, [FromBody] object input)
+    {
+        // Stub — settings updates not yet persisted
+        return NoContent();
+    }
+
     [HttpGet("{id:guid}/settings")]
     public ActionResult<object> GetSettingsAsync(Guid id)
     {
