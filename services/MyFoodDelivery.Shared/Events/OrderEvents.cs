@@ -40,12 +40,23 @@ public record OrderPaymentConfirmedEto(
 
 /// <summary>
 /// Published when the restaurant marks the order as ready for pickup.
-/// Triggers rider dispatch notification.
+/// Triggers rider dispatch: DeliverySvc creates a DeliveryTask from this event.
 /// </summary>
 public record OrderReadyForPickupEto(
     Guid OrderId,
     Guid RestaurantId,
-    DateTime ReadyAt);
+    DateTime ReadyAt,
+    // Restaurant / pickup info
+    string RestaurantName = "",
+    string PickupAddressLine = "",
+    double PickupLatitude = 0.0,
+    double PickupLongitude = 0.0,
+    // Customer delivery info (snapshot from order)
+    string DeliveryAddressLine = "",
+    double DeliveryLatitude = 0.0,
+    double DeliveryLongitude = 0.0,
+    string? DeliveryInstructions = null,
+    int EstimatedMinutes = 30);
 
 /// <summary>
 /// Published when order status changes.

@@ -185,10 +185,20 @@ public class RestaurantOrderAppService : ApplicationService, IRestaurantOrderApp
         order.MarkReadyForPickup();
         await _orderRepository.UpdateAsync(order);
 
+        var deliveryAddr = order.DeliveryAddress;
         await _eventBus.PublishAsync(new OrderReadyForPickupEto(
-            order.Id,
-            order.RestaurantId,
-            DateTime.UtcNow));
+            OrderId: order.Id,
+            RestaurantId: order.RestaurantId,
+            ReadyAt: DateTime.UtcNow,
+            RestaurantName: order.RestaurantName ?? "Restaurant",
+            PickupAddressLine: order.RestaurantName ?? "Restaurant",
+            PickupLatitude: 0.0,   // TODO: store restaurant coords on order at creation
+            PickupLongitude: 0.0,
+            DeliveryAddressLine: deliveryAddr.GetFullAddress(),
+            DeliveryLatitude: deliveryAddr.Latitude,
+            DeliveryLongitude: deliveryAddr.Longitude,
+            DeliveryInstructions: deliveryAddr.DeliveryInstructions,
+            EstimatedMinutes: order.EstimatedDeliveryMinutes > 0 ? order.EstimatedDeliveryMinutes : 30));
     }
 
     private static EventOrderStatus MapToEventStatus(DomainOrderStatus status)

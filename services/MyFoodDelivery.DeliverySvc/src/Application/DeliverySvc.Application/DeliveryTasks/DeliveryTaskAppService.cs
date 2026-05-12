@@ -3,8 +3,10 @@ using DeliverySvc.Application.Contracts.DeliveryTasks.Dtos;
 using DeliverySvc.Domain.DeliveryTasks;
 using DeliverySvc.Domain.Riders;
 using Microsoft.EntityFrameworkCore;
+using MyFoodDelivery.Shared.Events;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
+using Volo.Abp.EventBus.Distributed;
 
 namespace DeliverySvc.Application.DeliveryTasks;
 
@@ -12,13 +14,16 @@ public class DeliveryTaskAppService : ApplicationService, IDeliveryTaskAppServic
 {
     private readonly IRepository<DeliveryTask, Guid> _taskRepository;
     private readonly IRepository<Rider, Guid> _riderRepository;
+    private readonly IDistributedEventBus _eventBus;
 
     public DeliveryTaskAppService(
         IRepository<DeliveryTask, Guid> taskRepository,
-        IRepository<Rider, Guid> riderRepository)
+        IRepository<Rider, Guid> riderRepository,
+        IDistributedEventBus eventBus)
     {
         _taskRepository = taskRepository;
         _riderRepository = riderRepository;
+        _eventBus = eventBus;
     }
 
     public async Task<DeliveryTaskDto> GetAsync(Guid id)
@@ -116,11 +121,12 @@ public class DeliveryTaskAppService : ApplicationService, IDeliveryTaskAppServic
     public async Task MarkDeliveredAsync(Guid taskId)
     {
         var task = await _taskRepository.GetAsync(taskId);
+        var riderId = task.RiderId;
         task.MarkDelivered();
 
-        if (task.RiderId.HasValue)
+        if (riderId.HasValue)
         {
-            var rider = await _riderRepository.FindAsync(task.RiderId.Value);
+            var rider = await _riderRepository.FindAsync(riderId.Value);
             if (rider != null)
             {
                 rider.UpdateStatus(RiderStatus.Available);
@@ -130,5 +136,11 @@ public class DeliveryTaskAppService : ApplicationService, IDeliveryTaskAppServic
         }
 
         await _taskRepository.UpdateAsync(task);
+
+        await _eventBus.PublishAsync(new OrderDeliveredEto(
+            OrderId: task.OrderId,
+            RiderId: riderId ?? Guid.Empty,
+            CustomerId: Guid.Empty,
+            DeliveredAt: DateTime.UtcNow));
     }
 }
